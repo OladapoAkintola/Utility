@@ -39,10 +39,9 @@ def fetch_video_info(url):
     """Fetch video information including available resolutions."""
     try:
         ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'format': 'best',
-            'headers': HEADERS
+    'outtmpl': file_path,
+    'quiet': False,
+    'http_headers': HEADERS
         }
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)
