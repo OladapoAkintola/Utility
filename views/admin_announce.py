@@ -8,12 +8,12 @@ def read_announcements(file_path="views/announcement.txt"):
     except FileNotFoundError:
         return []
 
-def write_announcement(new_announcement, file_path="announcement.txt"):
+def write_announcement(new_announcement, file_path="views/announcement.txt"):
     """Write a new announcement to the file."""
     with open(file_path, "a") as file:
         file.write(new_announcement + "\n")
 
-def delete_announcement(index, file_path="announcement.txt"):
+def delete_announcement(index, file_path="views/announcement.txt"):
     """Delete an announcement by index from the file."""
     announcements = read_announcements(file_path)
     if 0 <= index < len(announcements):
