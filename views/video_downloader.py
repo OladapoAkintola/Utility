@@ -162,12 +162,39 @@ def download_tiktok_video(url):
         return {"error": str(e)}
 
 
+def download_tiktok_video2(url):
+    try:
+        logger.debug(f"Downloading TikTok video from URL: {url}")
+        download_folder = "tiktok_video"
+        ensure_folder_exists(download_folder)
+        file_name = "Untitled.mp4"
+        file_path = os.path.join(download_folder, file_name)
+
+        # Download the best combined video and audio stream directly (mp4 format)
+        ydl_opts = {
+            'format': 'mp4',  # Best combined video + audio in mp4
+            'outtmpl': os.path.join(download_folder, file_name),
+            'quiet': False,
+        }
+
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        logger.debug(f"TikTok video downloaded successfully to {file_path}")
+        return {"success": True, "file_path": file_path}
+
+    except Exception as e:
+        logger.error(f"Exception in download_tiktok_video: {str(e)}")
+        return {"error": str(e)}
+
+
+
 
 # Streamlit UI
 st.title("Multi-Platform Video Downloader")
 st.write("Download videos from YouTube, X (formerly Twitter), or Facebook.")
 
-platform = st.selectbox("Select Platform:", options=["YouTube", "X", "Facebook", "Instagram", "TikTok(NO WATERMARK)"])
+platform = st.selectbox("Select Platform:", options=["YouTube", "X", "Facebook", "Instagram", "TikTok(NO WATERMARK)", "TikTok"])
 url = st.text_input("Video URL:")
 
 itag = None
@@ -204,6 +231,14 @@ if st.button("Download Video"):
             st.info("Downloading Tiktok video...")
             with st.spinner("Downloading(removing watermarks)..."):
                 result = download_tiktok_video(url.strip())
+
+        elif platform == "TikTok":
+            st.info("Downloading Tiktok video...")
+            with st.spinner("Downloading..."):
+                result = download_tiktok_video(url.strip())
+
+
+        
         else:
             result = {"error": "Invalid platform selected."}
         
