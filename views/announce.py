@@ -10,6 +10,10 @@ def read_announcements(file_path="announcement.txt"):
     except FileNotFoundError:
         return []
 
+# Initialize session state if it doesn't exist
+if "announcements" not in st.session_state:
+    st.session_state.announcements = read_announcements()
+
 # Streamlit UI for announcements
 st.title("Announcements")
 
@@ -21,10 +25,10 @@ st.subheader("Latest Updates and Announcements")
 
 # Add a refresh button
 if st.button("Refresh Announcements"):
-    st.rerun()  # Reload the app to refresh announcements
+    st.session_state.announcements = read_announcements()
 
 # Read and display announcements
-announcements = read_announcements()
+announcements = st.session_state.announcements
 
 if announcements:
     for i, announcement in enumerate(announcements, start=1):
