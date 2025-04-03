@@ -1,5 +1,6 @@
 streamlit
 yt-dlp
+ffmpeg
 requests>=2.25
 beautifulsoup4>=4.9
 google>=3.0
