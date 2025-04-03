@@ -1,6 +1,6 @@
 import streamlit as st
-import yt_dlp as youtube_dl
 import os
+from pytube import YouTube
 from youtubesearchpython import VideosSearch
 
 # Ensure the download folder exists
@@ -18,24 +18,15 @@ def search_youtube(song_name):
         st.error(f"Search error: {e}")
     return None
 
-# Function to download the audio
+# Function to download audio using pytube
 def download_audio(youtube_url):
     download_folder = "music_downloads"
     ensure_folder_exists(download_folder)
 
-    file_name = "song.mp3"
-    file_path = os.path.join(download_folder, file_name)
-
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "outtmpl": file_path,
-        "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}],
-        "quiet": False,
-    }
-
     try:
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([youtube_url])
+        yt = YouTube(youtube_url)
+        audio_stream = yt.streams.filter(only_audio=True).first()
+        file_path = audio_stream.download(output_path=download_folder, filename="song.mp3")
         return file_path
     except Exception as e:
         st.error(f"Download error: {e}")
@@ -55,7 +46,7 @@ if st.button("Search & Download"):
         youtube_url = search_youtube(song_name.strip())
 
         if youtube_url:
-            st.success("Found the song! Downloading....")
+            st.success(f"Found the song! Downloading from: {youtube_url}")
             with st.spinner("Downloading..."):
                 file_path = download_audio(youtube_url)
 
