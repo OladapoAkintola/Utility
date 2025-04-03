@@ -219,6 +219,7 @@ if st.button("Download Video"):
             st.error(f"Error: {result['error']}")
         else:
             st.success("Video Downloaded Successfully!")
+            st.balloons()
             file_path = result["file_path"]
             st.video(file_path)
             try:
