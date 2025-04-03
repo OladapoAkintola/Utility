@@ -135,3 +135,4 @@ def main():
                 except Exception as e:
                     st.error(f"File error: {str(e)}")
                     logger.error(f"Error reading video file: {str(e)}")
+main()
