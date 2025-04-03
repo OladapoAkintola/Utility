@@ -82,7 +82,7 @@ def download_facebook_video(url):
         file_path = os.path.join(download_folder, file_name)
         
         ydl_opts = {
-            'format': 'bestvideo+bestaudio/best',  # Get best available quality
+            'format': 'mp4',  # Directly download the MP4 format (combined video and audio)
             'outtmpl': os.path.join(download_folder, file_name),
             'quiet': False,
         }
@@ -96,6 +96,7 @@ def download_facebook_video(url):
     except Exception as e:
         logger.error(f"Exception in download_facebook_video: {str(e)}")
         return {"error": str(e)}
+
 
 
 
