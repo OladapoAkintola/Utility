@@ -1,10 +1,22 @@
 import streamlit as st
+import os
+import logging
 
-def read_announcements():
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+def read_announcements(file_path="announcement.txt"):
     try:
-        with open("announcement.txt", "r") as file:
+        with open(file_path, "r") as file:
             return file.readlines()  # Read all lines as a list
     except FileNotFoundError:
+        logging.warning(f"{file_path} not found.")
+        return []
+    except PermissionError:
+        logging.error(f"Permission denied when accessing {file_path}.")
+        return []
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
         return []
 
 # Streamlit UI for announcements
@@ -18,7 +30,7 @@ st.subheader("Latest Updates and Announcements")
 
 # Add a refresh button
 if st.button("Refresh Announcements"):
-    st.rerun()  # Reload the app to refresh announcements
+    st.experimental_rerun()  # Reload the app to refresh announcements
 
 # Read and display announcements
 announcements = read_announcements()
@@ -28,4 +40,3 @@ if announcements:
         st.info(f"{i + 1}. {announcement.strip()}")
 else:
     st.write("No announcements yet.")
-
