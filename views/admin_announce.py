@@ -1,43 +1,48 @@
 import streamlit as st
 
-def read_announcements():
+def read_announcements(file_path="announcement.txt"):
+    """Read announcements from a file and return them as a list of lines."""
     try:
-        with open("announcement.txt", "r") as file:
-            return file.readlines()  # Read all lines as a list
+        with open(file_path, "r") as file:
+            return file.readlines()
     except FileNotFoundError:
         return []
 
-def write_announcements(announcements):
-    with open("announcement.txt", "w") as file:
-        file.writelines([announcement.strip() + "\n" for announcement in announcements])
+def write_announcement(new_announcement, file_path="announcement.txt"):
+    """Write a new announcement to the file."""
+    with open(file_path, "a") as file:
+        file.write(new_announcement + "\n")
 
-def delete_announcement(index):
-    announcements = read_announcements()
-    if 0 <= index < len(announcements):
-        del announcements[index]
-        write_announcements(announcements)
+# Streamlit UI for announcements
+st.title("Announcements")
 
-# Streamlit UI for admin
-st.title("Admin Announcement Page")
+# Display a static message
+st.write("Stay tuned for updates and new features!")
 
-# Display current announcements
+# Display the latest updates and announcements
+st.subheader("Latest Updates and Announcements")
+
+# Add a refresh button
+if st.button("Refresh Announcements"):
+    st.rerun()  # Reload the app to refresh announcements
+
+# Read and display announcements
 announcements = read_announcements()
-st.subheader("Current Announcements:")
+
 if announcements:
-    for i, announcement in enumerate(announcements):
-        st.write(f"{i + 1}. {announcement.strip()}")
+    for i, announcement in enumerate(announcements, start=1):
+        st.info(f"{i}. {announcement.strip()}")
 else:
     st.write("No announcements yet.")
 
-# Text input to enter a new announcement
-new_announcement = st.text_area("Type your announcement here")
+# Add a section for writing new announcements
+st.subheader("Add New Announcement")
+new_announcement = st.text_input("Enter your announcement")
 
-# Button to submit a new announcement
-if st.button("Submit Announcement"):
-    if new_announcement.strip():
-        announcements.append(new_announcement.strip())
-        write_announcements(announcements)
-        st.success("Announcement added!")
+if st.button("Add Announcement"):
+    if new_announcement:
+        write_announcement(new_announcement)
+        st.rerun()  # Reload the app to display the new announcement
     else:
         st.error("Announcement cannot be empty.")
 
@@ -51,4 +56,5 @@ if announcements:
 if st.button("Delete Announcement"):
     delete_announcement()
     st.success("Announcement deleted!")
+
 
