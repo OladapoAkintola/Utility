@@ -54,18 +54,24 @@ def download_x_video(url):
         ensure_folder_exists(download_folder)
         file_name = "Untitled.mp4"
         file_path = os.path.join(download_folder, file_name)
+
+        # Download the best combined video and audio stream directly
         ydl_opts = {
-            'format': 'bestvideo+bestaudio/best',  # Get best available quality
+            'format': 'mp4',  # Download the best combined MP4 format
             'outtmpl': os.path.join(download_folder, file_name),
             'quiet': False,
         }
+
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
+
         logger.debug(f"X video downloaded successfully to {file_path}")
         return {"success": True, "file_path": file_path}
+
     except Exception as e:
         logger.error(f"Exception in download_x_video: {str(e)}")
         return {"error": str(e)}
+
 
 def download_facebook_video(url):
     try:
@@ -79,10 +85,6 @@ def download_facebook_video(url):
             'format': 'bestvideo+bestaudio/best',  # Get best available quality
             'outtmpl': os.path.join(download_folder, file_name),
             'quiet': False,
-            'postprocessors': [{  # This ensures FFmpeg is used for merging streams
-                'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4',  # Convert to mp4 after download
-            }],
         }
         
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
@@ -94,6 +96,7 @@ def download_facebook_video(url):
     except Exception as e:
         logger.error(f"Exception in download_facebook_video: {str(e)}")
         return {"error": str(e)}
+
 
 # Streamlit UI
 st.title("Multi-Platform Video Downloader")
