@@ -1,6 +1,6 @@
 import streamlit as st
 
-def read_announcements(file_path="announcement.txt"):
+def read_announcements(file_path="views/announcement.txt"):
     """Read announcements from a file and return them as a list of lines."""
     try:
         with open(file_path, "r") as file:
