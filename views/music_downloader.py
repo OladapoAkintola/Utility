@@ -62,7 +62,7 @@ if st.button("Search & Download"):
     if not song_name.strip():
         st.error("Please enter a valid song name.")
     else:
-        st.info("Searching for the song on YouTube...")
+        st.info("Searching for the song")
         
         youtube_url = search_youtube(song_name.strip())
 
@@ -88,5 +88,6 @@ if st.button("Search & Download"):
             else:
                 st.error("Failed to download audio.")
         else:
-            st.error("Could not find the song on YouTube.")
+            st.error("Could not find the song")
+
 
