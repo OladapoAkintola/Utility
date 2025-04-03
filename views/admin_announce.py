@@ -58,7 +58,7 @@ if "user_id" not in st.session_state:
         # Ensure user is added to the database
         if not get_last_seen(user_id):
             update_last_seen(user_id, None)
-        st.experimental_rerun()
+        st.rerun()
 else:
     user_id = st.session_state["user_id"]
 
@@ -83,4 +83,4 @@ else:
 # Admin feature to add a new announcement
 if st.button("Add Test Announcement"):
     add_announcement("This is a new test announcement!")
-    st.experimental_rerun()
+    st.rerun()
