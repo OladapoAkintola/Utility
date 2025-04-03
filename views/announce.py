@@ -28,12 +28,7 @@ def init_user_db(user_id):
         conn.close()
 
 # Add a new general announcement
-def add_general_announcement(message):
-    conn = sqlite3.connect("general_announcements.db")
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO announcements (message) VALUES (?)", (message,))
-    conn.commit()
-    conn.close()
+
 
 # Copy general announcement to user-specific databases
 def copy_announcement_to_users():
@@ -97,11 +92,7 @@ if latest_announcement:
     st.subheader("Latest Update:")
     st.write(message)
 
-# Admin feature to add a new announcement
-if st.button("Add Test Announcement"):
-    add_general_announcement("This is a new test announcement!")
-    copy_announcement_to_users()  # Copy to all user databases
-    st.rerun()
+
 
 
 
