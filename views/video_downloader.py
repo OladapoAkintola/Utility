@@ -72,7 +72,6 @@ def download_x_video(url):
         logger.error(f"Exception in download_x_video: {str(e)}")
         return {"error": str(e)}
 
-
 def download_facebook_video(url):
     try:
         logger.debug(f"Downloading Facebook video from URL: {url}")
@@ -80,24 +79,50 @@ def download_facebook_video(url):
         ensure_folder_exists(download_folder)
         file_name = "Untitled.mp4"
         file_path = os.path.join(download_folder, file_name)
-        
+
+        # Download the best combined video + audio stream directly (mp4 format)
         ydl_opts = {
-            'format': 'best',  # Automatically choose the best combined format
+            'format': 'mp4',  # Best combined video + audio in mp4
             'outtmpl': os.path.join(download_folder, file_name),
             'quiet': False,
         }
-        
+
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
-        
+
         logger.debug(f"Facebook video downloaded successfully to {file_path}")
         return {"success": True, "file_path": file_path}
-    
+
     except Exception as e:
         logger.error(f"Exception in download_facebook_video: {str(e)}")
         return {"error": str(e)}
 
 
+
+def download_instagram_video(url):
+    try:
+        logger.debug(f"Downloading Instagram video from URL: {url}")
+        download_folder = "instagram_video"
+        ensure_folder_exists(download_folder)
+        file_name = "Untitled.mp4"
+        file_path = os.path.join(download_folder, file_name)
+
+        # Download the best combined video and audio stream directly (mp4 format)
+        ydl_opts = {
+            'format': 'mp4',  # Best combined video + audio in mp4
+            'outtmpl': os.path.join(download_folder, file_name),
+            'quiet': False,
+        }
+
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        logger.debug(f"Instagram video downloaded successfully to {file_path}")
+        return {"success": True, "file_path": file_path}
+
+    except Exception as e:
+        logger.error(f"Exception in download_instagram_video: {str(e)}")
+        return {"error": str(e)}
 
 
 
@@ -105,7 +130,7 @@ def download_facebook_video(url):
 st.title("Multi-Platform Video Downloader")
 st.write("Download videos from YouTube, X (formerly Twitter), or Facebook.")
 
-platform = st.selectbox("Select Platform:", options=["YouTube", "X", "Facebook"])
+platform = st.selectbox("Select Platform:", options=["YouTube", "X", "Facebook", "Instagram"])
 url = st.text_input("Video URL:")
 
 itag = None
@@ -132,6 +157,11 @@ if st.button("Download Video"):
             st.info("Downloading Facebook video...")
             with st.spinner("Downloading..."):
                 result = download_facebook_video(url.strip())
+
+        elif platform == "Instagram":
+            st.info("Downloading Instagram video...")
+            with st.spinner("Downloading..."):
+                result = download_instagram_video(url.strip())
         else:
             result = {"error": "Invalid platform selected."}
         
