@@ -98,8 +98,13 @@ else:
     st.write("No announcements yet.")
 
 # Admin feature to add a new announcement
-if st.button("Add Test Announcement"):
-    add_general_announcement("This is a new test announcement!")
-    copy_announcement_to_users()  # Copy to all user databases
-    st.success("New announcement added!")
-    st.rerun()
+st.subheader("Admin Section")
+new_announcement = st.text_input("Enter a new announcement:")
+if st.button("Publish Announcement"):
+    if new_announcement.strip():
+        add_general_announcement(new_announcement)
+        copy_announcement_to_users()  # Copy to all user databases
+        st.success("New announcement published!")
+        st.rerun()
+    else:
+        st.error("Announcement cannot be empty.")
