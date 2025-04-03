@@ -86,7 +86,7 @@ def scrape_emails_from_url(url, domain, location):
     return emails
 
 def main():
-    st.title("Email Web Scraper - Advanced Version")
+    st.title("Email Web Scraper")
     
     email_domain_filter = st.text_input("Enter email domain filter (e.g. @gmail.com):", "@gmail.com")
     country_filter = st.text_input("Enter country to filter results (e.g. USA):", "USA")
