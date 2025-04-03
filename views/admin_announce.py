@@ -52,7 +52,7 @@ st.title("Announcements")
 
 # User ID input
 if "user_id" not in st.session_state:
-    user_id = st.text_input("Enter your User ID:")
+    user_id = "Admin"
     if user_id:
         st.session_state["user_id"] = user_id
         # Ensure user is added to the database
