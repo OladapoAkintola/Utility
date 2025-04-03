@@ -30,7 +30,7 @@ st.subheader("Latest Updates and Announcements")
 
 # Add a refresh button
 if st.button("Refresh Announcements"):
-    st.experimental_rerun()  # Reload the app to refresh announcements
+    st.rerun()  # Reload the app to refresh announcements
 
 # Read and display announcements
 announcements = read_announcements()
