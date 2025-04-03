@@ -1,6 +1,7 @@
 streamlit
 yt-dlp
 ffmpeg
+pytube
 youtube-search-python
 requests>=2.25
 beautifulsoup4>=4.9
