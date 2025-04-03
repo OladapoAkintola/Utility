@@ -7,6 +7,12 @@ vid_download_page = st.Page(
     icon = "⬇️",
     default = True, 
 )
+
+music_download_page = st.Page(
+    page = "views/music_downloader.py",
+    title = "Music Downloader",
+    icon = "🎵",
+)
 announce_page = st.Page(
     page = "views/announce.py",
     title = "Announcements",
@@ -22,7 +28,7 @@ scraper_page = st.Page(
 #NAVIGATION WITH SECTIONS
 pg = st.navigation({
     "INFO": [announce_page],
-    "VIDEO DOWNLOAD": [vid_download_page],
+    "MEDIA DOWNLOAD": [vid_download_page, music_download_page],
     "SCRAPER": [scraper_page]
 })
 
@@ -32,4 +38,5 @@ st.sidebar.text("Made with ❤ by Dapo\nMorefeatures coming soon...")
 
 #RUN NAVIGATION
 pg.run()
+
 
