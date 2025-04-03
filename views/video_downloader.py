@@ -235,7 +235,7 @@ if st.button("Download Video"):
         elif platform == "TikTok":
             st.info("Downloading Tiktok video...")
             with st.spinner("Downloading..."):
-                result = download_tiktok_video(url.strip())
+                result = download_tiktok_video2(url.strip())
 
 
         
