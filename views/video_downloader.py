@@ -205,7 +205,8 @@ if st.button("Download Video"):
             st.info("Downloading Tiktok video...")
             with st.spinner("Downloading(removing watermarks)..."):
                 result = download_tiktok_video(url.strip())
-            st.info("Tiktok Previews May Not Be Available")
+            st.warning("Tiktok Previews May Not Appear As Audio Only")
+            st.warning("When this happens, just save the video directly")
 
       
 
