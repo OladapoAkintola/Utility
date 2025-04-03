@@ -7,4 +7,6 @@ word.capitalize()
 st.write(word)
 st.write("Stay tuned for updates and new features!")
 st.subheader("Latest Updates and Announcements")
-st.write("No announcements at the moment.").capitalize()
+word2 = "No announcements at the moment."
+word2.capitalize()
+st.write(word2)
