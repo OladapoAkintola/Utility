@@ -7,8 +7,11 @@ word.capitalize()
 st.write(word)
 st.write("Stay tuned for updates and new features!")
 st.subheader("Latest Updates and Announcements")
-word2 = "No announcements at the moment."
-word2.capitalize()
-st.write(word2)
+#word2 = "No announcements at the moment."
+#word2.capitalize()
+#st.write(word2)
 
 st.warning("Music downloader is currently not working")
+st.write("18:30 03/04/25:")
+st.warning("youtube is blocking the app's requests. Unable to get YouTube videos")
+st.info("Both issues would be fixed soon🤗")
