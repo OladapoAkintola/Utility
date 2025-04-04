@@ -5,3 +5,5 @@ Thank you for being a part of our community!
 Youtube is blocking access, unable to grt music and videos
 There are some problems with the app, fixing 🛠🛠...
 [12:28: 4/4/25]: All video download issues have been fixed.
+
+[02:41: 4/4/25]: Music downloader issue fixed.
