@@ -1,17 +1,9 @@
 import streamlit as st
-import requests
-import re
-import logging
-from bs4 import BeautifulSoup
-from googlesearch import search
-from urllib.robotparser import RobotFileParser
-from urllib.parse import urlparse, urljoin
-import os
 
 take_down = True
-while take_down:
-    with st.spinner():
-        st.markdown("TEMPORARILY UNAVAILABLE)
+st.markdown("## TEMPORARILY UNAVAILABLE")
+with st.spinner("Please wait..."):
+    pass
 
 ## Setup logger
 #logging.basicConfig(level=logging.INFO)
