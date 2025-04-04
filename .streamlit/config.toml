@@ -4,3 +4,5 @@ backgroundColor = "#0D1117"  # Bluish Black
 secondaryBackgroundColor = "#161B22"  # Slightly lighter black for contrast
 textColor = "#C0C0C0"  # Silver
 font = "sans serif"
+[server]
+headless = true
