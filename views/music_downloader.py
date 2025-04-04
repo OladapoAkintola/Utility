@@ -14,16 +14,17 @@ def search_and_download(query, save_path=SAVE_PATH):
     Tries to download audio as MP3 from YouTube first, falls back to SoundCloud, Bandcamp, and Mixcloud.
     """
     ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': os.path.join(save_path, '%(title)s.%(ext)s'),
-        'quiet': True,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '0',
-        }],
-        'ffmpeg_location': r'C:\ffmpeg\ffmpeg-2025-03-31-git-35c091f4b7-full_build\ffmpeg-2025-03-31-git-35c091f4b7-full_build\bin\ffmpeg.exe',  # Update with your ffmpeg path
-    }
+    'format': 'bestaudio/best',
+    'outtmpl': os.path.join(save_path, '%(title)s.%(ext)s'),
+    'quiet': True,
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '0',
+    }],
+    'ffmpeg_location': '/usr/bin/ffmpeg',  # Updated with correct path
+}
+
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
