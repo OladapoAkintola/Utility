@@ -1,6 +1,7 @@
 streamlit
 yt-dlp
 ffmpeg
+ffprobe
 pytube
 youtube-search-python
 requests>=2.25
