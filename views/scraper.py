@@ -1,8 +1,6 @@
 import streamlit as st
 
-take_down = True
-st.markdown("## TEMPORARILY UNAVAILABLE")
-with st.spinner("Please wait..."):
+with st.spinner("## TEMPORARILY UNAVAILABLE"):
     pass
 
 ## Setup logger
