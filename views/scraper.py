@@ -1,7 +1,12 @@
 import streamlit as st
 
-with st.spinner("## TEMPORARILY UNAVAILABLE"):
-    pass
+# Display the temporary unavailability message
+st.markdown("## TEMPORARILY UNAVAILABLE")
+
+# Keep the spinner running indefinitely
+with st.spinner("Please wait..."):
+    while True:
+        pass  # This creates an infinite loop, the spinner will keep spinning
 
 ## Setup logger
 #logging.basicConfig(level=logging.INFO)
