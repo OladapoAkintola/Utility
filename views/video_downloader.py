@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import yt_dlp as youtube_dl
 import logging
+import uuid
 
 # Configure logging for debug messages
 logging.basicConfig(level=logging.DEBUG)
@@ -56,13 +57,17 @@ def fetch_video_info(url):
         logger.error(f"Exception in fetch_video_info: {str(e)}")
         return {"error": str(e)}
 
+
 def download_video(url, platform, itag=None):
     """Download video from the given URL for the specified platform."""
     try:
         logger.debug(f"Downloading {platform} video from URL: {url} with itag: {itag}")
         download_folder = DOWNLOAD_FOLDERS.get(platform, "downloads")
         ensure_folder_exists(download_folder)
-        file_path = os.path.join(download_folder, DEFAULT_FILE_NAME)
+
+        # Generate a unique file name
+        unique_file_name = f"{uuid.uuid4()}.mp4"
+        file_path = os.path.join(download_folder, unique_file_name)
 
         ydl_opts = {
             'outtmpl': file_path,
