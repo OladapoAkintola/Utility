@@ -65,12 +65,7 @@ def download_video(url, platform, itag=None):
         download_folder = DOWNLOAD_FOLDERS.get(platform, "downloads")
         ensure_folder_exists(download_folder)
 
-        # Generate a unique file name
-        unique_file_name = f"{uuid.uuid4()}.mp4"
-        file_path = os.path.join(download_folder, unique_file_name)
-
         ydl_opts = {
-            'outtmpl': file_path,
             'quiet': False,
             'headers': HEADERS
         }
@@ -83,6 +78,12 @@ def download_video(url, platform, itag=None):
             ydl_opts['format'] = 'best'
 
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.extract_info(url, download=False)
+            video_info = result['entries'][0] if 'entries' in result else result
+            file_extension = video_info.get('ext', 'mp4')
+            file_name = f"{video_info['title']}.{file_extension}"
+            file_path = os.path.join(download_folder, file_name)
+            ydl_opts['outtmpl'] = file_path
             ydl.download([url])
 
         logger.debug(f"{platform} video downloaded successfully to {file_path}")
