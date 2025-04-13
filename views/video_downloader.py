@@ -21,7 +21,7 @@ DOWNLOAD_FOLDERS = {
     "Instagram": "instagram_video",
     "TikTok": "tiktok_video"
 }
-DEFAULT_FILE_NAME = "Untitled.mp4"
+DEFAULT_FILE_NAME = "Max utility.mp4"
 
 def ensure_folder_exists(folder):
     """Ensure that the download folder exists."""
@@ -61,8 +61,9 @@ def download_video(url, platform, itag=None):
     try:
         logger.debug(f"Downloading {platform} video from URL: {url} with itag: {itag}")
         download_folder = DOWNLOAD_FOLDERS.get(platform, "downloads")
+DEFAULT_FILE_NAMES = f"{DEFAULT_FILE_NAME}-{platform} video"
         ensure_folder_exists(download_folder)
-        file_path = os.path.join(download_folder, DEFAULT_FILE_NAME)
+        file_path = os.path.join(download_folder, DEFAULT_FILE_NAMES)
 
         ydl_opts = {
             'outtmpl': file_path,
