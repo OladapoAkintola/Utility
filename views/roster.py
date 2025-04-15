@@ -7,15 +7,28 @@ def get_week_date_range(today):
     end = start + timedelta(days=6)  # Sunday
     return start, end
 
-# Function to generate sweeping roster for the week
-def generate_roster(names, week_offset):
+# Function to generate a fair sweeping roster for the week
+def generate_fair_roster(names, week_offset):
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    roster = []
     n = len(names)
-    for i, day in enumerate(days):
-        # Assign each day to a name, rotated by week_offset
-        idx = (week_offset + i) % n
-        roster.append({"Day": day, "Room": names[idx]})
+    total_days = len(days)
+
+    # Determine how many days each person should sweep
+    base, extra = divmod(total_days, n)
+
+    # Order names for this week by rotating based on offset
+    order = [names[(week_offset + i) % n] for i in range(n)]
+
+    # Assign extra days to the first 'extra' people in the order
+    counts = {name: base + (1 if idx < extra else 0) for idx, name in enumerate(order)}
+
+    # Build the roster list by assigning days sequentially
+    roster = []
+    day_idx = 0
+    for name in order:
+        for _ in range(counts[name]):
+            roster.append({"Day": days[day_idx], "Person": name})
+            day_idx += 1
     return roster
 
 # Streamlit app
@@ -25,27 +38,26 @@ st.sidebar.header("Roster Settings")
 # Input: comma-separated names
 names_input = st.sidebar.text_area(
     "Enter names (comma-separated):",
-    value="ROOM  2, ROOM 3, ROOM 6"
+    value="Alice, Bob, Charlie, Diana, Ethan, Fiona, George"
 )
 
 # Parse names
 names = [n.strip() for n in names_input.split(",") if n.strip()]
 
-if len(names) < 1:
+if not names:
     st.error("Please enter at least one name.")
 else:
     # Determine current week number and offset
     today = date.today()
-    iso_calendar = today.isocalendar()
-    week_num = iso_calendar[1]
-    week_offset = (week_num - 1) % len(names)
+    iso_week = today.isocalendar()[1]
+    week_offset = (iso_week - 1) % len(names)
 
-    # Generate roster
-    roster = generate_roster(names, week_offset)
+    # Generate fair roster for current week
+    roster = generate_fair_roster(names, week_offset)
 
     # Display week date range
     start, end = get_week_date_range(today)
-    st.write(f"**Week:** {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')} (ISO Week {week_num})")
+    st.write(f"**Week:** {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')} (ISO Week {iso_week})")
 
     # Show roster table
     st.table(roster)
@@ -53,9 +65,8 @@ else:
     # Optional: Show next week's roster
     if st.sidebar.checkbox("Show next week's roster"):
         next_offset = (week_offset + 1) % len(names)
-        next_roster = generate_roster(names, next_offset)
+        next_roster = generate_fair_roster(names, next_offset)
         next_start = start + timedelta(days=7)
         next_end = end + timedelta(days=7)
-        st.write(f"**Next Week:** {next_start.strftime('%Y-%m-%d')} to {next_end.strftime('%Y-%m-%d')} (ISO Week {week_num + 1})")
+        st.write(f"**Next Week:** {next_start.strftime('%Y-%m-%d')} to {next_end.strftime('%Y-%m-%d')} (ISO Week {iso_week + 1})")
         st.table(next_roster)
-
