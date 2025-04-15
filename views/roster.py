@@ -38,7 +38,7 @@ st.sidebar.header("Roster Settings")
 # Input: comma-separated names
 names_input = st.sidebar.text_area(
     "Enter names (comma-separated):",
-    value="Alice, Bob, Charlie, Diana, Ethan, Fiona, George"
+    value="ROOM 2, ROOM 3, ROOM 6"
 )
 
 # Parse names
