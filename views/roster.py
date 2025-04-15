@@ -85,7 +85,7 @@ def main():
 
     names_input = st.sidebar.text_area(
         "Enter names (comma-separated):",
-        value="Alice, Bob, Charlie, Diana, Ethan, Fiona, George"
+        value="ROOM 2, ROOM 3, ROOM 6"
     )
     names = [n.strip() for n in names_input.split(",") if n.strip()]
     weeks = st.sidebar.number_input(
