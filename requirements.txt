@@ -42,3 +42,4 @@ tzdata==2025.2
 urllib3==2.3.0
 watchdog==6.0.0
 yt-dlp==2025.3.31
+mutagen==1.47.0
