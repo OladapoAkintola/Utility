@@ -101,6 +101,8 @@ def main():
     st.title("Multi-Platform Video Downloader")
     st.write("Download videos from YouTube, YouTube Shorts, X, Facebook, Instagram, and TikTok.")
 
+st.write("For Other platforms Just past the link in any option and click download")
+
     platform = st.selectbox("Select Platform:", options=list(DOWNLOAD_FOLDERS.keys()))
     url = st.text_input("Video URL:")
 
