@@ -7,3 +7,4 @@ There are some problems with the app, fixing 🛠🛠...
 [12:28: 4/4/25]: All video download issues have been fixed.
 [02:41: 4/4/25]: Music downloader issue fixed.
 [02:44: 4/4/25]: Email Scraper has been temporarily taken down.
+[03:44: 7/8/25]: Download Links are platform independent, the platform drop-down is just there for naming and for selection of quality/resolution(YouTube).
