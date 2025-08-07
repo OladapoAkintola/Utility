@@ -8,3 +8,5 @@ There are some problems with the app, fixing 🛠🛠...
 [02:41: 4/4/25]: Music downloader issue fixed.
 [02:44: 4/4/25]: Email Scraper has been temporarily taken down.
 [03:44: 7/8/25]: Download Links are platform independent, the platform drop-down is just there for naming and for selection of quality/resolution(YouTube).
+
+[03:44: 7/8/25]: In music downloader only name and artist are required, all the others are just there so if filled the app can embed them as metadata.
