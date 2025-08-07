@@ -1,38 +1,48 @@
 import streamlit as st
-import os
+from pathlib import Path
 import logging
 
-def read_announcements(file_path="views/announcement.txt"):
-    """Read announcements from a file and return them as a list of lines."""
+# ——— Configuration ———
+ANNOUNCEMENTS_PATH = Path(
+    st.secrets.get("ANNOUNCEMENT_FILE", "views/announcement.txt")
+)
+logging.basicConfig(level=logging.INFO)
+
+# ——— Data Access Layer ———
+@st.cache_data(ttl=60)  # re-reads file at most once per minute
+def load_announcements() -> list[str]:
     try:
-        with open(file_path, "r") as file:
-            return file.readlines()
-    except FileNotFoundError:
+        lines = ANNOUNCEMENTS_PATH.read_text(encoding="utf-8").splitlines()
+        # filter out blank and whitespace-only lines
+        return [line.strip() for line in lines if line.strip()]
+    except Exception as e:
+        logging.error(f"Failed to read announcements: {e}")
+        st.error("Could not load announcements. See logs for details.")
         return []
 
-# Initialize session state if it doesn't exist
-if "announcements" not in st.session_state:
-    st.session_state.announcements = read_announcements()
+def append_announcement(text: str) -> bool:
+    """Append a new announcement. Returns True on success."""
+    try:
+        with ANNOUNCEMENTS_PATH.open("a", encoding="utf-8") as f:
+            f.write(text.strip() + "\n")
+        # clear cache so new announcement shows immediately
+        load_announcements.clear()
+        return True
+    except Exception as e:
+        logging.error(f"Failed to write announcement: {e}")
+        st.error("Could not save announcement. See logs for details.")
+        return False
 
-# Streamlit UI for announcements
-st.title("Announcements")
-
-# Display a static message
+# ——— UI ———
+st.set_page_config(page_title="Announcements", layout="centered")
+st.title("📢 Announcements Board")
 st.write("Stay tuned for updates and new features!")
 
-# Display the latest updates and announcements
-st.subheader("Latest Updates and Announcements")
-
-# Add a refresh button
-if st.button("Refresh Announcements"):
-    st.session_state.announcements = read_announcements()
-
-# Read and display announcements
-announcements = st.session_state.announcements
-
+# Show existing announcements
+st.subheader("Latest Updates")
+announcements = load_announcements()
 if announcements:
-    for i, announcement in enumerate(announcements, start=1):
-    	if announcement != "":
-    		st.info(f"{announcement.strip()}")
+    for idx, ann in enumerate(announcements, start=1):
+        st.info(f"{idx}. {ann}")
 else:
-    st.write("No announcements yet.")
+    st.write("_No announcements yet._")
