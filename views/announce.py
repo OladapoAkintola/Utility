@@ -32,6 +32,7 @@ announcements = st.session_state.announcements
 
 if announcements:
     for i, announcement in enumerate(announcements, start=1):
-        st.info(f"{announcement.strip()}")
+    	if announcement != "":
+    		st.info(f"{announcement.strip()}")
 else:
     st.write("No announcements yet.")
