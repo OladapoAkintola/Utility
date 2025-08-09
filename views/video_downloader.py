@@ -1,15 +1,17 @@
-import streamlit as st
+import re
 import os
-import yt_dlp as ytdlp
 import logging
 from datetime import datetime
+
+import streamlit as st
+import yt_dlp as ytdlp
 
 try:
     from pytubefix import YouTube as PyTubeFixYouTube
 except Exception:
     PyTubeFixYouTube = None
 
-# Configure logging for debug messages
+# Logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -18,9 +20,12 @@ HEADERS = {
     'User-Agent': (
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
         'AppleWebKit/537.36 (KHTML, like Gecko) '
-        'Chrome/58.0.3029.110 Safari/537.36'
-    )
+        'Chrome/117.0.0.0 Safari/537.36'
+    ),
+    'Referer': 'https://www.youtube.com/',
+    'Accept-Language': 'en-US,en;q=0.9'
 }
+
 DOWNLOAD_FOLDERS = {
     "YouTube": "youtube_video",
     "YouTube Shorts": "youtube_shorts",
@@ -28,23 +33,43 @@ DOWNLOAD_FOLDERS = {
     "Facebook": "facebook_video",
     "Instagram": "instagram_video",
     "TikTok": "tiktok_video",
-   
     "YouTube Alternative": "youtube_alt"
 }
-BASE_FILE_NAME = "Max utility"
 
+BASE_FILE_NAME = "Max_utility"
 
-def ensure_folder_exists(folder):
-    """Ensure that the download folder exists."""
+# ---------- Utilities ----------
+
+def ensure_folder_exists(folder: str):
     if not os.path.exists(folder):
-        logger.debug(f"Folder '{folder}' does not exist. Creating folder.")
-        os.makedirs(folder)
-    else:
-        logger.debug(f"Folder '{folder}' already exists.")
+        logger.debug(f"Creating folder: {folder}")
+        os.makedirs(folder, exist_ok=True)
 
+def make_output_template_noext(platform: str):
+    """Return a safe filename base (no extension)."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_platform = platform.replace(" ", "_")
+    return f"{BASE_FILE_NAME}-{safe_platform}-{timestamp}"
+
+def normalize_youtube_url(url: str) -> str:
+    """Normalize various YouTube URL forms to the canonical watch?v=ID format.
+
+    Matches:
+      - https://youtu.be/<id>
+      - https://www.youtube.com/shorts/<id>
+      - https://www.youtube.com/watch?v=<id>
+    """
+    if not url:
+        return url
+    url = url.strip()
+    # Look for 11-char youtube ID in common patterns
+    m = re.search(r"(?:v=|\/shorts\/|youtu\.be\/)([A-Za-z0-9_-]{11})", url)
+    if m:
+        return f"https://www.youtube.com/watch?v={m.group(1)}"
+    return url
 
 def get_format_string(itag):
-    """Convert the itag (possibly a string) to a valid format string for yt-dlp."""
+    """Map common itags to a simple format string for yt-dlp; fallback to 'best'."""
     format_map = {
         18: '18',  # 360p
         22: '22',  # 720p
@@ -56,122 +81,96 @@ def get_format_string(itag):
         return 'best'
     return format_map.get(itag_int, 'best')
 
+# ---------- Fetch / Download with yt-dlp ----------
 
-def make_output_template(platform):
-    """Generate a unique, sanitized filename with timestamp."""
-    safe_name = BASE_FILE_NAME.replace(" ", "_")
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{safe_name}-{platform}-{timestamp}.mp4"
-
-
-def fetch_video_info(url):
-    """Fetch video information including available formats using yt-dlp.
-
-    This is used for the default downloaders (yt-dlp based) to present
-    selectable resolutions to the user.
-    """
+def fetch_video_info(url: str):
+    """Use yt-dlp to fetch available formats (used for UI selection)."""
     try:
-        ydl_opts = {
-            'quiet': True,
-            'http_headers': HEADERS
-        }
+        ydl_opts = {'quiet': True, 'http_headers': HEADERS}
         with ytdlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
         return {"success": True, "formats": info.get('formats', [])}
     except Exception as e:
-        logger.error(f"Exception in fetch_video_info (yt-dlp): {e}")
+        logger.exception("fetch_video_info failed")
         return {"error": str(e)}
 
-
-def fetch_video_info_pytubefix(url):
-    """Fetch available progressive streams using pytubefix (a pytube drop-in fix).
-
-    Notes:
-    - pytubefix/pytube provides stream objects with .itag and .resolution.
-    - We'll expose only progressive streams here because pytubefix cannot
-      merge separate audio/video streams without ffmpeg.
-    """
-    if PyTubeFixYouTube is None:
-        return {"error": "pytubefix is not installed or failed to import."}
-
+def download_video(url: str, platform: str, itag=None):
+    """Download using yt-dlp. Outtmpl uses dynamic extension handling via %(ext)s."""
     try:
-        yt = PyTubeFixYouTube(url)
-        # Filter only progressive streams so the result is a single file (no merging)
-        streams = yt.streams.filter(progressive=True).order_by('resolution').desc()
-        formats = []
-        for s in streams:
-            formats.append({
-                'format_id': str(s.itag),
-                'resolution': getattr(s, 'resolution', None) or s.abr if hasattr(s, 'abr') else 'unknown',
-                'mime_type': getattr(s, 'mime_type', None),
-                'filesize': getattr(s, 'filesize', None)
-            })
-        return {"success": True, "formats": formats}
-    except Exception as e:
-        logger.error(f"Exception in fetch_video_info_pytubefix: {e}")
-        return {"error": str(e)}
-
-
-def download_video(url, platform, itag=None):
-    """Download the video to the appropriate folder, using an optional itag (yt-dlp).
-
-    This function is used for all platforms except the "YouTube Alternative"
-    which uses pytubefix.
-    """
-    try:
-        logger.debug(f"Downloading {platform} video from URL: {url} with itag: {itag}")
+        logger.debug("yt-dlp download: %s (itag=%s)", url, itag)
         download_folder = DOWNLOAD_FOLDERS.get(platform, "downloads")
         ensure_folder_exists(download_folder)
 
-        filename = make_output_template(platform)
-        file_path = os.path.join(download_folder, filename)
+        filename_base = make_output_template_noext(platform)
+        outtmpl = os.path.join(download_folder, filename_base + ".%(ext)s")
 
         ydl_opts = {
-            'outtmpl': file_path,
+            'outtmpl': outtmpl,
             'quiet': False,
             'http_headers': HEADERS,
-            'format': get_format_string(itag) if platform.startswith("YouTube") and itag else 'best'
+            'format': get_format_string(itag) if platform.startswith("YouTube") and itag else 'best',
         }
 
         with ytdlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        logger.debug(f"{platform} video downloaded successfully to {file_path}")
+        # After download, try to find the actual file (pick newest file with that base)
+        files = sorted(
+            (f for f in os.listdir(download_folder) if f.startswith(filename_base)),
+            key=lambda x: os.path.getmtime(os.path.join(download_folder, x)),
+            reverse=True
+        )
+        file_path = os.path.join(download_folder, files[0]) if files else None
+
+        if not file_path or not os.path.exists(file_path):
+            return {"error": "yt-dlp finished but output file not found."}
+
+        logger.debug("Downloaded (yt-dlp) to %s", file_path)
         return {"success": True, "file_path": file_path}
 
     except ytdlp.utils.DownloadError as e:
-        logger.error(f"Download error (yt-dlp): {e}")
-        return {"error": f"Download error: {e}"}
+        logger.exception("yt-dlp download error")
+        return {"error": f"Download error: {str(e)}"}
     except Exception as e:
-        logger.error(f"Exception in download_video (yt-dlp): {e}")
-        return {"error": f"Exception in download_video: {e}"}
+        logger.exception("yt-dlp unexpected error")
+        return {"error": f"Exception in download_video: {str(e)}"}
 
+# ---------- Fetch / Download with pytubefix (progressive only) ----------
 
-def download_video_pytubefix(url, platform, itag=None):
-    """Download using pytubefix (pure-Python, progressive streams only).
-
-    - If an itag is provided, try to select that stream.
-    - Otherwise pick the highest-resolution progressive stream.
-    - Returns same result dict shape as download_video.
-    """
+def fetch_video_info_pytubefix(url: str):
     if PyTubeFixYouTube is None:
-        return {"error": "pytubefix is not available. Install with `pip install pytubefix`."}
-
+        return {"error": "pytubefix not installed (pip install pytubefix)"}
     try:
-        logger.debug(f"(pytubefix) Downloading {platform} from URL: {url} with itag: {itag}")
+        yt = PyTubeFixYouTube(url)
+        streams_query = yt.streams.filter(progressive=True).order_by('resolution').desc()
+        stream_list = list(streams_query)
+        formats = []
+        for s in stream_list:
+            formats.append({
+                'format_id': str(getattr(s, 'itag', '')),
+                'resolution': getattr(s, 'resolution', None) or getattr(s, 'abr', None) or "unknown",
+                'mime_type': getattr(s, 'mime_type', None),
+                'filesize': getattr(s, 'filesize', None)
+            })
+        return {"success": True, "formats": formats}
+    except Exception as e:
+        logger.exception("pytubefix fetch failed")
+        return {"error": str(e)}
+
+def download_video_pytubefix(url: str, platform: str, itag=None):
+    if PyTubeFixYouTube is None:
+        return {"error": "pytubefix not available. Install with `pip install pytubefix`."}
+    try:
+        logger.debug("pytubefix download: %s (itag=%s)", url, itag)
         download_folder = DOWNLOAD_FOLDERS.get(platform, "downloads")
         ensure_folder_exists(download_folder)
 
-        filename = make_output_template(platform)
-        # pytube's download API expects a filename without an extension sometimes; we'll
-        # strip the .mp4 because pytube will append the appropriate extension.
-        filename_no_ext = os.path.splitext(filename)[0]
+        filename_base = make_output_template_noext(platform)
 
         yt = PyTubeFixYouTube(url)
 
         selected_stream = None
         if itag:
-            # pytube itag is usually an int
             try:
                 itag_int = int(itag)
                 selected_stream = yt.streams.get_by_itag(itag_int)
@@ -179,48 +178,52 @@ def download_video_pytubefix(url, platform, itag=None):
                 selected_stream = None
 
         if not selected_stream:
-            # pick highest progressive stream
-            streams = yt.streams.filter(progressive=True).order_by('resolution').desc()
-            selected_stream = streams.first() if streams else None
+            progressive_streams = list(yt.streams.filter(progressive=True).order_by('resolution').desc())
+            selected_stream = progressive_streams[0] if progressive_streams else None
 
         if not selected_stream:
             return {"error": "No progressive streams available via pytubefix."}
 
-        # Perform download
-        downloaded_path = selected_stream.download(output_path=download_folder, filename=filename_no_ext)
-        # Ensure file path ends with .mp4 or similar (pytube will add ext)
-        logger.debug(f"pytubefix downloaded file to {downloaded_path}")
+        # pytube/pytubefix download returns the actual file path
+        downloaded_path = selected_stream.download(output_path=download_folder, filename=filename_base)
+        logger.debug("pytubefix downloaded to %s", downloaded_path)
         return {"success": True, "file_path": downloaded_path}
-
     except Exception as e:
-        logger.error(f"Exception in download_video_pytubefix: {e}")
-        return {"error": f"Exception in download_video_pytubefix: {e}"}
+        logger.exception("pytubefix download failed")
+        return {"error": f"Exception in download_video_pytubefix: {str(e)}"}
 
+# ---------- Streamlit UI ----------
 
 def main():
     st.title("Multi-Platform Video Downloader")
-    st.write("Download videos from YouTube, YouTube Shorts, X, Facebook, Instagram, and TikTok.")
-
-    st.write("For Other platforms, just paste the link in any option and click download")
+    st.write("Download videos from multiple platforms. Shorts URLs are normalized automatically.")
 
     platform = st.selectbox("Select Platform:", options=list(DOWNLOAD_FOLDERS.keys()))
-    url = st.text_input("Video URL:")
+    raw_url = st.text_input("Video URL:")
+
+    # Normalize YouTube / Shorts URLs before any fetch or download
+    url = raw_url.strip()
+    if url and ("youtube" in url or "youtu.be" in url):
+        url = normalize_youtube_url(url)
+        st.caption(f"Normalized URL: {url}")
 
     itag = None
-    # For YouTube platforms, fetch and let the user pick an itag/resolution
-    if platform in ["YouTube", "YouTube Shorts"] and url.strip():
-        st.info("Fetching available resolutions for YouTube (yt-dlp)...")
-        with st.spinner("Fetching video info..."):
-            info = fetch_video_info(url.strip())
+
+    # For YouTube options (yt-dlp-based), fetch formats using yt-dlp
+    if platform in ["YouTube", "YouTube Shorts"] and url:
+        st.info("Fetching available resolutions (yt-dlp)...")
+        with st.spinner("Fetching..."):
+            info = fetch_video_info(url)
         if "error" in info:
             st.error(f"Error: {info['error']}")
         else:
-            # Map format_id → resolution/label
-            available_itags = {
-                fmt['format_id']: fmt.get('resolution') or fmt.get('format_note') or "unknown"
-                for fmt in info["formats"]
-                if 'format_id' in fmt
-            }
+            # Build mapping of format_id -> label (resolution or note)
+            available_itags = {}
+            for fmt in info.get("formats", []):
+                fid = fmt.get('format_id')
+                label = fmt.get('resolution') or fmt.get('format_note') or fmt.get('ext') or "unknown"
+                if fid:
+                    available_itags[str(fid)] = label
             if available_itags:
                 itag = st.radio(
                     "Select Resolution for YouTube:",
@@ -230,21 +233,22 @@ def main():
             else:
                 st.warning("No selectable formats found; defaulting to best quality.")
 
-    # For the "YouTube Alternative" option, use pytubefix to fetch progressive streams
-    if platform == "YouTube Alternative" and url.strip():
+    # For the YouTube Alternative option (pytubefix), fetch progressive streams
+    if platform == "YouTube Alternative" and url:
         st.info("Fetching available progressive streams for YouTube Alternative (pytubefix)...")
-        with st.spinner("Fetching video info via pytubefix..."):
-            info = fetch_video_info_pytubefix(url.strip())
+        with st.spinner("Fetching (pytubefix)..."):
+            info = fetch_video_info_pytubefix(url)
         if "error" in info:
             st.error(f"Error: {info['error']}")
             if PyTubeFixYouTube is None:
                 st.info("Install pytubefix: pip install pytubefix")
         else:
-            available_itags = {
-                fmt['format_id']: fmt.get('resolution') or fmt.get('format_note') or fmt.get('resolution')
-                for fmt in info["formats"]
-                if 'format_id' in fmt
-            }
+            available_itags = {}
+            for fmt in info.get("formats", []):
+                fid = fmt.get('format_id')
+                label = fmt.get('resolution') or "unknown"
+                if fid:
+                    available_itags[str(fid)] = label
             if available_itags:
                 itag = st.radio(
                     "Select Resolution for YouTube Alternative:",
@@ -252,39 +256,43 @@ def main():
                     format_func=lambda x: available_itags[x]
                 )
             else:
-                st.warning("No progressive formats found via pytubefix; it will attempt to pick the best progressive stream.")
+                st.warning("No progressive formats found via pytubefix; will attempt best progressive stream.")
 
     if st.button("Download Video"):
-        if not url.strip():
+        if not url:
             st.error("Please enter a valid URL.")
-        else:
-            st.info(f"Downloading {platform} video...")
-            with st.spinner("Downloading..."):
-                if platform == "YouTube Alternative":
-                    result = download_video_pytubefix(url.strip(), platform, itag)
-                else:
-                    result = download_video(url.strip(), platform, itag)
-            if "error" in result:
-                st.error(f"Error: {result['error']}")
-            else:
-                st.success("Video Downloaded Successfully!")
-                st.balloons()
-                file_path = result["file_path"]
-                st.video(file_path)
-                try:
-                    with open(file_path, "rb") as f:
-                        video_bytes = f.read()
-                    st.download_button(
-                        label="⬇️ Save Video",
-                        data=video_bytes,
-                        file_name=os.path.basename(file_path),
-                        mime="video/mp4"
-                    )
-                    logger.debug("Rendered download button successfully.")
-                except Exception as e:
-                    st.error(f"File error: {e}")
-                    logger.error(f"Error reading video file: {e}")
+            return
 
+        st.info(f"Downloading {platform} video...")
+        with st.spinner("Downloading..."):
+            if platform == "YouTube Alternative":
+                result = download_video_pytubefix(url, platform, itag)
+                # optional: fallback to yt-dlp if pytubefix fails
+                if "error" in result:
+                    logger.debug("pytubefix failed; attempting yt-dlp fallback: %s", result.get("error"))
+                    result = download_video(url, platform + "_yt-dlp_fallback", itag)
+            else:
+                result = download_video(url, platform, itag)
+
+        if "error" in result:
+            st.error(f"Error: {result['error']}")
+        else:
+            st.success("Video Downloaded Successfully!")
+            st.balloons()
+            file_path = result["file_path"]
+            try:
+                st.video(file_path)
+                with open(file_path, "rb") as f:
+                    video_bytes = f.read()
+                st.download_button(
+                    label="⬇️ Save Video",
+                    data=video_bytes,
+                    file_name=os.path.basename(file_path),
+                    mime="video/mp4"
+                )
+            except Exception as e:
+                st.error(f"File error: {e}")
+                logger.exception("Error reading/serving downloaded file")
 
 if __name__ == "__main__":
     main()
