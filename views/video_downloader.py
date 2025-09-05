@@ -8,7 +8,6 @@ from datetime import datetime
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Constants
 HEADERS = {
     'User-Agent': (
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -33,10 +32,10 @@ def ensure_folder_exists(folder):
     else:
         logger.debug(f"Folder '{folder}' already exists.")
 
-def make_output_template(platform):
+def make_output_template(platform, ext="mp4"):
     safe_name = BASE_FILE_NAME.replace(" ", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{safe_name}-{platform}-{timestamp}.mp4"
+    return f"{safe_name}-{platform}-{timestamp}.{ext}"
 
 def fetch_video_info(url):
     """Fetch video info including available formats."""
@@ -49,30 +48,43 @@ def fetch_video_info(url):
         logger.error(f"Exception in fetch_video_info: {e}")
         return {"error": str(e)}
 
-def download_video(url, platform, itag=None):
-    """Download video using exact format_id or fallback to best available."""
+def download_video(url, platform, itag=None, audio_only=False):
+    """Download video or audio using exact format_id or fallback to best available."""
     try:
-        logger.debug(f"Downloading {platform} video from URL: {url} with itag: {itag}")
+        logger.debug(f"Downloading {platform} from URL: {url} with itag: {itag}, audio_only: {audio_only}")
         download_folder = DOWNLOAD_FOLDERS.get(platform, "downloads")
         ensure_folder_exists(download_folder)
 
-        filename = make_output_template(platform)
+        ext = "mp3" if audio_only else "mp4"
+        filename = make_output_template(platform, ext)
         file_path = os.path.join(download_folder, filename)
 
-        # Use selected format_id or fallback to best
-        format_str = itag if itag else 'bestvideo+bestaudio/best'
-
-        ydl_opts = {
-            'outtmpl': file_path,
-            'quiet': False,
-            'http_headers': HEADERS,
-            'format': format_str
-        }
+        if audio_only:
+            ydl_opts = {
+                'outtmpl': file_path,
+                'quiet': False,
+                'http_headers': HEADERS,
+                'format': 'bestaudio/best',
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192',
+                }]
+            }
+        else:
+            # Use selected format_id or fallback to best
+            format_str = itag if itag else 'bestvideo+bestaudio/best'
+            ydl_opts = {
+                'outtmpl': file_path,
+                'quiet': False,
+                'http_headers': HEADERS,
+                'format': format_str
+            }
 
         with ytdlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        logger.debug(f"{platform} video downloaded successfully to {file_path}")
+        logger.debug(f"{platform} download successful: {file_path}")
         return {"success": True, "file_path": file_path}
 
     except ytdlp.utils.DownloadError as e:
@@ -90,63 +102,82 @@ def main():
     url = st.text_input("Video URL:")
 
     itag = None
+    audio_only = False
 
     if platform in ["YouTube", "YouTube Shorts"] and url.strip():
-        st.info("Fetching available resolutions for YouTube...")
+        st.info("Fetching available formats for YouTube...")
         with st.spinner("Fetching video info..."):
             info = fetch_video_info(url.strip())
         if "error" in info:
             st.error(f"Error: {info['error']}")
         else:
-            # Build a map of unique resolutions to format_ids
-            available_itags = {}
-            seen_labels = set()
+            # Separate video formats and audio-only formats
+            video_itags = {}
+            audio_itags = {}
+            seen_video_labels = set()
+            seen_audio_labels = set()
+
             for fmt in info["formats"]:
-                if 'format_id' in fmt:
-                    res = fmt.get('resolution') or fmt.get('format_note') or "unknown"
-                    ext = fmt.get('ext', 'mp4')
-                    label = f"{res} ({ext})"
-                    # Skip duplicates
-                    if label not in seen_labels:
-                        available_itags[fmt['format_id']] = label
-                        seen_labels.add(label)
+                if 'format_id' not in fmt:
+                    continue
+                res = fmt.get('resolution') or fmt.get('format_note') or "unknown"
+                ext = fmt.get('ext', 'mp4')
+                label = f"{res} ({ext})"
 
-            if available_itags:
+                if fmt.get('vcodec') != 'none':  # Video + audio or video-only
+                    if label not in seen_video_labels:
+                        video_itags[fmt['format_id']] = label
+                        seen_video_labels.add(label)
+                elif fmt.get('acodec') != 'none':  # Audio only
+                    audio_label = f"{fmt.get('abr', 'unknown')}kbps ({ext})"
+                    if audio_label not in seen_audio_labels:
+                        audio_itags[fmt['format_id']] = audio_label
+                        seen_audio_labels.add(audio_label)
+
+            # Option to select audio-only download
+            audio_only = st.checkbox("Audio Only (MP3)")
+
+            if audio_only and audio_itags:
                 itag = st.radio(
-                    "Select format for YouTube:",
-                    options=list(available_itags.keys()),
-                    format_func=lambda x: available_itags[x]
+                    "Select audio quality:",
+                    options=list(audio_itags.keys()),
+                    format_func=lambda x: audio_itags[x]
                 )
-            else:
-                st.warning("No selectable formats found; defaulting to best quality.")
+            elif not audio_only and video_itags:
+                itag = st.radio(
+                    "Select video format:",
+                    options=list(video_itags.keys()),
+                    format_func=lambda x: video_itags[x]
+                )
 
-    if st.button("Download Video"):
+    if st.button("Download"):
         if not url.strip():
             st.error("Please enter a valid URL.")
         else:
-            st.info(f"Downloading {platform} video...")
+            st.info(f"Downloading {platform}...")
             with st.spinner("Downloading..."):
-                result = download_video(url.strip(), platform, itag)
+                result = download_video(url.strip(), platform, itag, audio_only)
             if "error" in result:
                 st.error(f"Error: {result['error']}")
             else:
-                st.success("Video Downloaded Successfully!")
+                st.success("Download Successful!")
                 st.balloons()
                 file_path = result["file_path"]
-                st.video(file_path)
+                if not audio_only:
+                    st.video(file_path)
                 try:
                     with open(file_path, "rb") as f:
-                        video_bytes = f.read()
+                        file_bytes = f.read()
                     st.download_button(
-                        label="⬇️ Save Video",
-                        data=video_bytes,
+                        label="⬇️ Save File",
+                        data=file_bytes,
                         file_name=os.path.basename(file_path),
-                        mime="video/mp4"
+                        mime="audio/mpeg" if audio_only else "video/mp4"
                     )
                     logger.debug("Rendered download button successfully.")
                 except Exception as e:
                     st.error(f"File error: {e}")
-                    logger.error(f"Error reading video file: {e}")
+                    logger.error(f"Error reading file: {e}")
 
 if __name__ == "__main__":
     main()
