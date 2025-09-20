@@ -71,6 +71,7 @@ def download_video(url, platform, itag=None, audio_only=False):
             if audio_only:
                 temp_file = os.path.splitext(temp_file)[0] + ".mp3"
 
+        # Copy file into memory
         with open(temp_file, "rb") as f:
             buffer.write(f.read())
         buffer.seek(0)
@@ -78,7 +79,7 @@ def download_video(url, platform, itag=None, audio_only=False):
         # cleanup temp file
         os.remove(temp_file)
 
-        return {"success": True, "filename": filename, "buffer": buffer}
+        return {"success": True, "filename": filename, "buffer": buffer, "audio_only": audio_only}
 
     except Exception as e:
         logger.error(f"Exception in download_video: {e}")
@@ -152,11 +153,19 @@ def main():
             else:
                 st.success("Download Successful!")
                 st.balloons()
+
+                # ✅ Preview directly from BytesIO
+                if result["audio_only"]:
+                    st.audio(result["buffer"], format="audio/mp3")
+                else:
+                    st.video(result["buffer"])
+
+                # ✅ Download button from memory
                 st.download_button(
                     label="⬇️ Save File",
                     data=result["buffer"],
                     file_name=result["filename"],
-                    mime="audio/mpeg" if audio_only else "video/mp4"
+                    mime="audio/mpeg" if result["audio_only"] else "video/mp4"
                 )
 
 if __name__ == "__main__":
