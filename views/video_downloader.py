@@ -193,7 +193,7 @@ def ensure_cache_validity():
 
 # ---------- Streamlit UI ----------
 def main():
-    st.set_page_config(page_title="Max Utility Downloader", layout="wide")
+    
     st.title("🌐 Max Utility — Multi-Platform Downloader")
     st.write("Supports YouTube, Shorts, X, TikTok, Instagram, Facebook. Threads excluded.")
 
