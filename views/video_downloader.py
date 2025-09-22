@@ -76,7 +76,7 @@ def download_media(url, platform, itag=None, audio_only=False):
     }
 
     if audio_only:
-        # ✅ Always force best audio, no selection
+        # Always force best audio
         ydl_opts.update({
             'format': 'bestaudio/best',
             'postprocessors': [{
@@ -94,7 +94,6 @@ def download_media(url, platform, itag=None, audio_only=False):
         with ytdlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
-            # ✅ Always resolve final filename after yt-dlp finishes
             if audio_only:
                 if "requested_downloads" in info and info["requested_downloads"]:
                     temp_filename = info["requested_downloads"][0]["_filename"]
@@ -121,14 +120,12 @@ def main():
     st.title("🌐 Multi-Platform Video Downloader 2025")
     st.write("Supports YouTube, Shorts, X, TikTok, Instagram, Facebook.")
 
-    # 🔴 Removed Threads (unsupported in yt-dlp)
     platform = st.selectbox("Platform", ["YouTube", "YouTube Shorts", "X", "Facebook", "Instagram", "TikTok"])
     url = st.text_input("Video URL")
 
     itag = None
-    audio_only = st.checkbox("Audio Only (MP3)")  # ✅ One-click mode
 
-    if platform in ["YouTube", "YouTube Shorts"] and url.strip() and not audio_only:
+    if platform in ["YouTube", "YouTube Shorts"] and url.strip():
         st.info("Fetching YouTube formats...")
         try:
             info = fetch_youtube_formats(url.strip())
@@ -156,29 +153,45 @@ def main():
         if video_itags:
             itag = st.radio("Select Video Format", list(video_itags.keys()), format_func=lambda x: video_itags[x])
 
-    if st.button("Download"):
-        if not url.strip():
-            st.error("Please enter a valid URL.")
-            return
-
-        st.info("Downloading...")
-        result = download_media(url.strip(), platform, itag, audio_only)
-        if "error" in result:
-            st.error(f"Error: {result['error']}")
-            return
-
-        st.success("Download Successful! 🎉")
-        if result["audio_only"]:
-            st.audio(result["buffer"], format="audio/mp3")
-        else:
+    # Two separate buttons
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⬇️ Download Video"):
+            if not url.strip():
+                st.error("Please enter a valid URL.")
+                return
+            st.info("Downloading video...")
+            result = download_media(url.strip(), platform, itag, audio_only=False)
+            if "error" in result:
+                st.error(f"Error: {result['error']}")
+                return
+            st.success("Download Successful! 🎉")
             st.video(result["buffer"])
+            st.download_button(
+                label="Save Video",
+                data=result["buffer"],
+                file_name=result["filename"],
+                mime="video/mp4"
+            )
 
-        st.download_button(
-            label="⬇️ Save File",
-            data=result["buffer"],
-            file_name=result["filename"],
-            mime="audio/mpeg" if result["audio_only"] else "video/mp4"
-        )
+    with col2:
+        if st.button("🎵 Download Audio"):
+            if not url.strip():
+                st.error("Please enter a valid URL.")
+                return
+            st.info("Extracting audio...")
+            result = download_media(url.strip(), platform, None, audio_only=True)
+            if "error" in result:
+                st.error(f"Error: {result['error']}")
+                return
+            st.success("Audio Extracted! 🎉")
+            st.audio(result["buffer"], format="audio/mp3")
+            st.download_button(
+                label="Save Audio",
+                data=result["buffer"],
+                file_name=result["filename"],
+                mime="audio/mpeg"
+            )
 
 
 if __name__ == "__main__":
