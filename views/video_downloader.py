@@ -38,6 +38,9 @@ def fetch_youtube_formats(url):
     ydl_opts = {'quiet': True, 'http_headers': HEADERS}
     with ytdlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
+    # Keep only formats with actual URL
+    valid_formats = [f for f in info.get("formats", []) if f.get("url")]
+    info["formats"] = valid_formats
     return info
 
 
@@ -53,11 +56,11 @@ def format_preview_label(fmt):
 
 
 def download_media(url, platform, itag=None, audio_only=False):
-    """Download media into BytesIO buffer."""
+    """Download media into BytesIO buffer with safe fallbacks."""
     ext = "mp3" if audio_only else "mp4"
     buffer = io.BytesIO()
     temp_filename = make_output_template(platform, ext)
-    
+
     # Cache path
     video_id = sanitize_filename(url.split("/")[-1])
     cache_file = os.path.join(CACHE_DIR, f"{video_id}.{ext}")
@@ -70,7 +73,8 @@ def download_media(url, platform, itag=None, audio_only=False):
     ydl_opts = {
         'outtmpl': temp_filename,
         'quiet': True,
-        'http_headers': HEADERS
+        'http_headers': HEADERS,
+        'noplaylist': True
     }
 
     if audio_only:
@@ -89,14 +93,21 @@ def download_media(url, platform, itag=None, audio_only=False):
 
     try:
         with ytdlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            # Adjust filename if audio_only
+            try:
+                info = ydl.extract_info(url, download=True)
+            except Exception as e:
+                # Fallback to "best"
+                logger.warning(f"Format {itag} failed, falling back: {e}")
+                ydl_opts['format'] = 'best'
+                info = ydl.extract_info(url, download=True)
+
             if audio_only:
                 temp_filename = os.path.splitext(temp_filename)[0] + ".mp3"
 
         with open(temp_filename, "rb") as f:
             buffer.write(f.read())
         buffer.seek(0)
+
         # Save to cache
         with open(cache_file, "wb") as f:
             f.write(buffer.getbuffer())
@@ -111,9 +122,10 @@ def download_media(url, platform, itag=None, audio_only=False):
 
 def main():
     st.title("🌐 Multi-Platform Video Downloader 2025")
-    st.write("Supports YouTube, Shorts, X, TikTok, Instagram, Facebook, Threads (via Instagram fallback).")
+    st.write("Supports YouTube, Shorts, X, TikTok, Instagram, Facebook.")
 
-    platform = st.selectbox("Platform", ["YouTube", "YouTube Shorts", "X", "Facebook", "Instagram", "TikTok", "Threads"])
+    # 🔴 Removed Threads (unsupported in yt-dlp)
+    platform = st.selectbox("Platform", ["YouTube", "YouTube Shorts", "X", "Facebook", "Instagram", "TikTok"])
     url = st.text_input("Video URL")
 
     itag = None
@@ -155,7 +167,7 @@ def main():
         elif not audio_only and video_itags:
             itag = st.radio("Select Video Format", list(video_itags.keys()), format_func=lambda x: video_itags[x])
 
-    elif platform in ["X", "TikTok", "Instagram", "Facebook", "Threads"]:
+    elif platform in ["X", "TikTok", "Instagram", "Facebook"]:
         audio_only = st.checkbox("Audio Only (MP3)")
 
     if st.button("Download"):
