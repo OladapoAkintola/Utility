@@ -101,8 +101,12 @@ def download_media(url, platform, itag=None, audio_only=False):
                 ydl_opts['format'] = 'best'
                 info = ydl.extract_info(url, download=True)
 
+            # ✅ Ensure final extension is correct for audio
             if audio_only:
-                temp_filename = os.path.splitext(temp_filename)[0] + ".mp3"
+                if "requested_downloads" in info and info["requested_downloads"]:
+                    temp_filename = info["requested_downloads"][0]["_filename"]
+                else:
+                    temp_filename = os.path.splitext(temp_filename)[0] + ".mp3"
 
         with open(temp_filename, "rb") as f:
             buffer.write(f.read())
@@ -157,7 +161,7 @@ def main():
         if info.get("thumbnail"):
             try:
                 thumb_resp = requests.get(info["thumbnail"], timeout=10)
-                st.image(thumb_resp.content, caption=info.get("title"), use_column_width=True)
+                st.image(thumb_resp.content, caption=info.get("title"), use_container_width=True)  # ✅ Fix here
             except:
                 pass
 
