@@ -4,7 +4,6 @@ import io
 import os
 import re
 import requests
-from PIL import Image
 from datetime import datetime
 import logging
 
@@ -38,7 +37,6 @@ def fetch_youtube_formats(url):
     ydl_opts = {'quiet': True, 'http_headers': HEADERS}
     with ytdlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
-    # Keep only formats with actual URL
     valid_formats = [f for f in info.get("formats", []) if f.get("url")]
     info["formats"] = valid_formats
     return info
@@ -78,6 +76,7 @@ def download_media(url, platform, itag=None, audio_only=False):
     }
 
     if audio_only:
+        # ✅ Always force best audio, no selection
         ydl_opts.update({
             'format': 'bestaudio/best',
             'postprocessors': [{
@@ -93,15 +92,9 @@ def download_media(url, platform, itag=None, audio_only=False):
 
     try:
         with ytdlp.YoutubeDL(ydl_opts) as ydl:
-            try:
-                info = ydl.extract_info(url, download=True)
-            except Exception as e:
-                # Fallback to "best"
-                logger.warning(f"Format {itag} failed, falling back: {e}")
-                ydl_opts['format'] = 'best'
-                info = ydl.extract_info(url, download=True)
+            info = ydl.extract_info(url, download=True)
 
-            # ✅ Ensure final extension is correct for audio
+            # ✅ Always resolve final filename after yt-dlp finishes
             if audio_only:
                 if "requested_downloads" in info and info["requested_downloads"]:
                     temp_filename = info["requested_downloads"][0]["_filename"]
@@ -133,9 +126,9 @@ def main():
     url = st.text_input("Video URL")
 
     itag = None
-    audio_only = False
+    audio_only = st.checkbox("Audio Only (MP3)")  # ✅ One-click mode
 
-    if platform in ["YouTube", "YouTube Shorts"] and url.strip():
+    if platform in ["YouTube", "YouTube Shorts"] and url.strip() and not audio_only:
         st.info("Fetching YouTube formats...")
         try:
             info = fetch_youtube_formats(url.strip())
@@ -143,9 +136,7 @@ def main():
             st.error(f"Failed to fetch formats: {e}")
             return
 
-        # Prepare format lists
         video_itags = {}
-        audio_itags = {}
         for fmt in info.get('formats', []):
             if 'format_id' not in fmt:
                 continue
@@ -153,26 +144,17 @@ def main():
             if fmt.get('vcodec') != 'none':
                 if label not in video_itags.values():
                     video_itags[fmt['format_id']] = label
-            elif fmt.get('vcodec') == 'none':
-                if label not in audio_itags.values():
-                    audio_itags[fmt['format_id']] = label
 
         st.subheader("Video Preview")
         if info.get("thumbnail"):
             try:
                 thumb_resp = requests.get(info["thumbnail"], timeout=10)
-                st.image(thumb_resp.content, caption=info.get("title"), use_container_width=True)  # ✅ Fix here
+                st.image(thumb_resp.content, caption=info.get("title"), use_container_width=True)
             except:
                 pass
 
-        audio_only = st.checkbox("Audio Only (MP3)")
-        if audio_only and audio_itags:
-            itag = st.radio("Select Audio Quality", list(audio_itags.keys()), format_func=lambda x: audio_itags[x])
-        elif not audio_only and video_itags:
+        if video_itags:
             itag = st.radio("Select Video Format", list(video_itags.keys()), format_func=lambda x: video_itags[x])
-
-    elif platform in ["X", "TikTok", "Instagram", "Facebook"]:
-        audio_only = st.checkbox("Audio Only (MP3)")
 
     if st.button("Download"):
         if not url.strip():
