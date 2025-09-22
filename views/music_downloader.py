@@ -1,5 +1,5 @@
 import os
-import io
+import re
 import streamlit as st
 import yt_dlp
 import requests
@@ -8,31 +8,40 @@ from mutagen.id3 import ID3, APIC, TIT2, TPE1, TALB, TPE2, TRCK, TCON, TDRC
 
 # Setup folders
 SAVE_PATH = "downloads"
+CACHE_PATH = "cache"
 os.makedirs(SAVE_PATH, exist_ok=True)
+os.makedirs(CACHE_PATH, exist_ok=True)
+
+
+def sanitize_filename(s):
+    """Sanitize filename to be filesystem-safe."""
+    return re.sub(r'[\\/*?:"<>|]', "", s)
 
 
 def search_youtube(query, max_results=5):
-    """Search YouTube for videos matching query and return info dicts without downloading."""
+    """Search YouTube and return metadata for videos."""
     ydl_opts = {
         'format': 'bestaudio/best',
         'quiet': True,
         'skip_download': True,
-        'extract_flat': True,  # Only metadata
+        'extract_flat': True,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         result = ydl.extract_info(f"ytsearch{max_results}:{query}", download=False)
     return result.get('entries', [])
 
 
-def get_audio_bytes(video_url):
-    """Download audio to BytesIO and return it along with video info."""
-    ydl_opts = {'format': 'bestaudio/best', 'quiet': True, 'outtmpl': '%(title)s.%(ext)s'}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+def download_audio(video_url, save_path=SAVE_PATH):
+    """Download audio if not cached; return local path and info."""
+    with yt_dlp.YoutubeDL({'format': 'bestaudio/best', 'quiet': True,
+                           'postprocessors': [{'key': 'FFmpegExtractAudio',
+                                               'preferredcodec': 'mp3',
+                                               'preferredquality': '0'}]}) as ydl:
         info = ydl.extract_info(video_url, download=True)
-        audio_file = info['requested_downloads'][0]['filepath']
-        with open(audio_file, 'rb') as f:
-            audio_bytes = io.BytesIO(f.read())
-    return audio_bytes, info, audio_file
+        video_id = info.get('id')
+        file_name = sanitize_filename(f"{video_id}.mp3")
+        file_path = os.path.join(save_path, file_name)
+        return file_path, info
 
 
 def embed_metadata(file_path, info, metadata_inputs):
@@ -41,7 +50,6 @@ def embed_metadata(file_path, info, metadata_inputs):
     audio.add(TIT2(encoding=3, text=metadata_inputs.get('title', info.get('title'))))
     audio.add(TPE1(encoding=3, text=metadata_inputs.get('artist', info.get('uploader'))))
 
-    # Optional tags
     if metadata_inputs.get('album'):
         audio.add(TALB(encoding=3, text=metadata_inputs['album']))
     if metadata_inputs.get('album_artist'):
@@ -53,7 +61,6 @@ def embed_metadata(file_path, info, metadata_inputs):
     if metadata_inputs.get('year'):
         audio.add(TDRC(encoding=3, text=str(metadata_inputs['year'])))
 
-    # Cover art
     thumbnail_url = info.get('thumbnail')
     if thumbnail_url:
         try:
@@ -74,14 +81,14 @@ def embed_metadata(file_path, info, metadata_inputs):
 def display_thumbnail(thumbnail_url, title):
     try:
         resp = requests.get(thumbnail_url, timeout=10)
-        img = Image.open(io.BytesIO(resp.content))
+        img = Image.open(resp.content if hasattr(resp, "content") else resp.raw)
         st.image(img, caption=title, use_column_width=True)
     except Exception:
         st.warning("Thumbnail not available.")
 
 
 def main():
-    st.title("🎶 MP3 Downloader with Playable Previews")
+    st.title("🎶 MP3 Downloader with Previews & Cache")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -102,21 +109,38 @@ def main():
         query = f"{title} {artist}"
         st.info("Searching YouTube...")
         results = search_youtube(query)
-        st.success(f"Found {len(results)} results.")
+        if not results:
+            st.warning("No results found.")
+            return
+
+        st.success(f"Found {len(results)} results. Preview below:")
 
         for idx, vid in enumerate(results, start=1):
             st.subheader(f"{idx}. {vid.get('title')}")
-            display_thumbnail(vid.get('thumbnail', ''), vid.get('title'))
+            if vid.get('thumbnail'):
+                display_thumbnail(vid['thumbnail'], vid['title'])
 
-            # Playable preview
-            try:
-                audio_bytes, info, audio_file = get_audio_bytes(vid['url'])
-                st.audio(audio_bytes)
-            except Exception as e:
-                st.warning(f"Could not generate audio preview: {e}")
-                continue
+            # Use YouTube embed for preview
+            st.video(vid['url'])
+
+            # Prepare cached file path
+            video_id = vid.get('id')
+            cached_file = os.path.join(CACHE_PATH, sanitize_filename(f"{video_id}.mp3"))
 
             if st.button(f"⬇️ Download '{vid.get('title')}'", key=vid['url']):
+                if os.path.exists(cached_file):
+                    st.success("Using cached audio file.")
+                    file_path = cached_file
+                    info = vid
+                else:
+                    with st.spinner("Downloading audio..."):
+                        try:
+                            file_path, info = download_audio(vid['url'], save_path=CACHE_PATH)
+                        except Exception as e:
+                            st.error(f"Download failed: {e}")
+                            continue
+
+                # Embed metadata
                 metadata_inputs = {
                     'title': title,
                     'artist': artist,
@@ -126,10 +150,12 @@ def main():
                     'genre': genre or None,
                     'year': year or None
                 }
-                embed_metadata(audio_file, info, metadata_inputs)
-                st.success(f"Downloaded and tagged: {info['title']}")
-                with open(audio_file, 'rb') as f:
-                    st.download_button("⬇️ Download MP3", f, file_name=os.path.basename(audio_file), mime="audio/mpeg")
+                embed_metadata(file_path, info, metadata_inputs)
+                st.success(f"Downloaded & tagged: {info['title']}")
+
+                # Provide download button
+                with open(file_path, 'rb') as f:
+                    st.download_button("⬇️ Download MP3", f, file_name=os.path.basename(file_path), mime="audio/mpeg")
 
 
 if __name__ == "__main__":
