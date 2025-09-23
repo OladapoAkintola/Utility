@@ -80,7 +80,7 @@ def create_ics(all_rosters):
 # Streamlit App
 
 def main():
-    st.title("Sweeping Roster Planner")
+    st.title("Roster Planner")
     st.sidebar.header("Settings")
 
     names_input = st.sidebar.text_area(
