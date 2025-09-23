@@ -11,7 +11,7 @@ def get_week_date_range(today, week_offset=0):
     sunday = monday + timedelta(days=6)
     return monday, sunday
 
-# Generate fair roster, skipping Saturdays (GENERAL CLEANING)
+# Generate fair roster, skipping Saturdays (GENERAL)
 def generate_fair_roster(names, week_offset):
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     assign_days = [d for d in days if d != "Saturday"]
