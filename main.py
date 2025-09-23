@@ -21,7 +21,7 @@ scraper_page = st.Page(
 )
 
 roaster_page = st.Page(
-    page="views/roaster.py",
+    page="views/roster.py",
     title="Roaster Creator",
     icon="📃",
 )
