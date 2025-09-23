@@ -88,7 +88,7 @@ def display_thumbnail(thumbnail_url, title):
 
 
 def main():
-    st.title("🎶 MP3 Downloader with Previews & Cache")
+    st.title("🎶Max Utility - MP3 Downloader")
 
     col1, col2 = st.columns(2)
     with col1:
