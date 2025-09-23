@@ -13,11 +13,7 @@ music_download_page = st.Page(
     title = "Music Downloader",
     icon = "🎵",
 )
-announce_page = st.Page(
-    page = "views/announce.py",
-    title = "Announcements",
-    icon = "📢",
-)
+
 
 scraper_page = st.Page(
     page = "views/scraper.py",
@@ -26,8 +22,7 @@ scraper_page = st.Page(
 )
 
 #NAVIGATION WITH SECTIONS
-pg = st.navigation({
-    "INFO": [announce_page],
+pg = st.navigation({
     "MEDIA DOWNLOAD": [vid_download_page, music_download_page],
     "SCRAPER": [scraper_page]
 })
