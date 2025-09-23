@@ -21,10 +21,18 @@ scraper_page = st.Page(
     icon = "🔍",
 )
 
+roaster_page = st.Page(
+    page = "views/roaster.py",
+    title = "Roaster Creator",
+    icon = "📃",
+)
+
 #NAVIGATION WITH SECTIONS
-pg = st.navigation({
+pg = st.navigation({
+
     "MEDIA DOWNLOAD": [vid_download_page, music_download_page],
     "SCRAPER": [scraper_page]
+    "Other Utilities": [roaster_page]
 })
 
 #SHARED ON ALL PAGES
@@ -33,5 +41,6 @@ st.sidebar.text("Made with ❤ by Dapo\nMorefeatures coming soon...")
 
 #RUN NAVIGATION
 pg.run()
+
 
 
