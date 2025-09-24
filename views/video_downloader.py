@@ -299,7 +299,11 @@ def main():
             st.error(f"Could not show audio: {e}")
 
     st.markdown("---")
+    st.warning("The options below affect the speed of the app, only touch as a last resort")
+
+
     col1, col2 = st.columns(2)
+    
     with col1:
         if st.button("🧹 Clear session (video + audio)"):
             clear_video_session()
