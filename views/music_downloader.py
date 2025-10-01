@@ -4,7 +4,10 @@ import streamlit as st
 import yt_dlp
 import requests
 from PIL import Image
-from mutagen.id3 import ID3, APIC, TIT2, TPE1, TALB, TPE2, TRCK, TCON, TDRC
+from io import BytesIO
+from mutagen.id3 import (
+    ID3, APIC, TIT2, TPE1, TALB, TPE2, TRCK, TCON, TDRC, ID3NoHeaderError
+)
 
 # Setup folders
 SAVE_PATH = "downloads"
@@ -31,22 +34,37 @@ def search_youtube(query, max_results=5):
     return result.get('entries', [])
 
 
-def download_audio(video_url, save_path=SAVE_PATH):
-    """Download audio if not cached; return local path and info."""
-    with yt_dlp.YoutubeDL({'format': 'bestaudio/best', 'quiet': True,
-                           'postprocessors': [{'key': 'FFmpegExtractAudio',
-                                               'preferredcodec': 'mp3',
-                                               'preferredquality': '0'}]}) as ydl:
+def download_audio(video_url, video_id, save_path=CACHE_PATH):
+    """Download audio into cache and return path + info."""
+    file_name = sanitize_filename(f"{video_id}.mp3")
+    file_path = os.path.join(save_path, file_name)
+
+    if os.path.exists(file_path):
+        # Already cached
+        return file_path, None
+
+    with yt_dlp.YoutubeDL({
+        'format': 'bestaudio/best',
+        'quiet': True,
+        'outtmpl': os.path.join(save_path, f"{video_id}.%(ext)s"),
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '0'
+        }]
+    }) as ydl:
         info = ydl.extract_info(video_url, download=True)
-        video_id = info.get('id')
-        file_name = sanitize_filename(f"{video_id}.mp3")
-        file_path = os.path.join(save_path, file_name)
-        return file_path, info
+
+    return file_path, info
 
 
 def embed_metadata(file_path, info, metadata_inputs):
     """Embed ID3 tags and cover art using mutagen."""
-    audio = ID3()
+    try:
+        audio = ID3(file_path)
+    except ID3NoHeaderError:
+        audio = ID3()
+
     audio.add(TIT2(encoding=3, text=metadata_inputs.get('title', info.get('title'))))
     audio.add(TPE1(encoding=3, text=metadata_inputs.get('artist', info.get('uploader'))))
 
@@ -61,7 +79,7 @@ def embed_metadata(file_path, info, metadata_inputs):
     if metadata_inputs.get('year'):
         audio.add(TDRC(encoding=3, text=str(metadata_inputs['year'])))
 
-    thumbnail_url = info.get('thumbnail')
+    thumbnail_url = info.get('thumbnail') if info else None
     if thumbnail_url:
         try:
             resp = requests.get(thumbnail_url, timeout=10)
@@ -73,22 +91,32 @@ def embed_metadata(file_path, info, metadata_inputs):
                     desc='Cover',
                     data=resp.content
                 ))
-        except Exception:
-            st.warning("Could not fetch cover art.")
+        except Exception as e:
+            st.warning(f"Could not fetch cover art: {e}")
+
     audio.save(file_path)
+
+
+def move_to_downloads(file_path):
+    """Move file from cache to downloads folder."""
+    final_file = os.path.join(SAVE_PATH, os.path.basename(file_path))
+    if os.path.exists(final_file):
+        os.remove(final_file)  # overwrite if exists
+    os.replace(file_path, final_file)
+    return final_file
 
 
 def display_thumbnail(thumbnail_url, title):
     try:
         resp = requests.get(thumbnail_url, timeout=10)
-        img = Image.open(resp.content if hasattr(resp, "content") else resp.raw)
+        img = Image.open(BytesIO(resp.content))
         st.image(img, caption=title, use_column_width=True)
-    except Exception:
-        st.warning("Thumbnail not available.")
+    except Exception as e:
+        st.warning(f"Thumbnail not available: {e}")
 
 
 def main():
-    st.title("🎶Max Utility - MP3 Downloader")
+    st.title("🎶 Max Utility - MP3 Downloader")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -121,41 +149,47 @@ def main():
                 display_thumbnail(vid['thumbnail'], vid['title'])
 
             # Use YouTube embed for preview
-            st.video(vid['url'])
+            video_url = vid.get('url') or vid.get('webpage_url')
+            st.video(video_url)
 
-            # Prepare cached file path
             video_id = vid.get('id')
             cached_file = os.path.join(CACHE_PATH, sanitize_filename(f"{video_id}.mp3"))
+            final_file = os.path.join(SAVE_PATH, sanitize_filename(f"{video_id}.mp3"))
 
-            if st.button(f"⬇️ Download '{vid.get('title')}'", key=vid['url']):
-                if os.path.exists(cached_file):
-                    st.success("Using cached audio file.")
-                    file_path = cached_file
+            if st.button(f"⬇️ Download '{vid.get('title')}'", key=f"download_{video_id}"):
+                if os.path.exists(final_file):
+                    st.success("Already downloaded.")
+                    file_path = final_file
                     info = vid
                 else:
                     with st.spinner("Downloading audio..."):
                         try:
-                            file_path, info = download_audio(vid['url'], save_path=CACHE_PATH)
+                            file_path, info = download_audio(video_url, video_id)
                         except Exception as e:
                             st.error(f"Download failed: {e}")
                             continue
 
-                # Embed metadata
-                metadata_inputs = {
-                    'title': title,
-                    'artist': artist,
-                    'album': album or None,
-                    'album_artist': album_artist or None,
-                    'track_number': track_number or None,
-                    'genre': genre or None,
-                    'year': year or None
-                }
-                embed_metadata(file_path, info, metadata_inputs)
-                st.success(f"Downloaded & tagged: {info['title']}")
+                    metadata_inputs = {
+                        'title': title,
+                        'artist': artist,
+                        'album': album or None,
+                        'album_artist': album_artist or None,
+                        'track_number': track_number or None,
+                        'genre': genre or None,
+                        'year': year or None
+                    }
+                    embed_metadata(file_path, info or vid, metadata_inputs)
+                    file_path = move_to_downloads(file_path)
+                    st.success(f"Downloaded & tagged: {title} - {artist}")
 
-                # Provide download button
                 with open(file_path, 'rb') as f:
-                    st.download_button("⬇️ Download MP3", f, file_name=os.path.basename(file_path), mime="audio/mpeg")
+                    st.download_button(
+                        "⬇️ Save MP3",
+                        f,
+                        file_name=os.path.basename(file_path),
+                        mime="audio/mpeg",
+                        key=f"save_{video_id}"
+                    )
 
 
 if __name__ == "__main__":
