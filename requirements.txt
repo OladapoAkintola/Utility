@@ -41,6 +41,6 @@ typing_extensions==4.13.1
 tzdata==2025.2
 urllib3==2.3.0
 watchdog==6.0.0
-yt-dlp==2025.08.11
+yt-dlp==2025.10.22
 mutagen==1.47.0
 pytubefix==9.4.1
