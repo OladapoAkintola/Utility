@@ -10,6 +10,14 @@ CACHE_DIR = "cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 AUDIO_FORMATS = ["mp3", "wav", "aac", "ogg", "flac", "m4a"]
+MIME_MAP = {
+    "mp3": "audio/mpeg",
+    "wav": "audio/wav",
+    "aac": "audio/aac",
+    "ogg": "audio/ogg",
+    "flac": "audio/flac",
+    "m4a": "audio/mp4",
+}
 
 
 def extract_audio(video_path: str, filename_prefix: str) -> str:
@@ -25,7 +33,11 @@ def extract_audio(video_path: str, filename_prefix: str) -> str:
                "-i", video_path, "-vn", "-acodec", "libmp3lame", "-q:a", "2", audio_temp]
         subprocess.run(cmd, check=True)
 
-        cache_path = os.path.join(CACHE_DIR, f"{filename_prefix}.mp3")
+        if not os.path.exists(audio_temp):
+            raise RuntimeError("FFmpeg failed: output file not created.")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        cache_path = os.path.join(CACHE_DIR, f"{filename_prefix}_{timestamp}.mp3")
         shutil.move(audio_temp, cache_path)
         return cache_path
     except subprocess.CalledProcessError as e:
@@ -37,14 +49,23 @@ def extract_audio(video_path: str, filename_prefix: str) -> str:
 
 def convert_audio(input_path: str, output_format: str) -> str:
     """Convert audio file to another format."""
-    filename_prefix = os.path.splitext(os.path.basename(input_path))[0]
+    if not ffmpeg_available():
+        st.error("⚠️ ffmpeg not found. Install it and add to PATH.")
+        return None
+
+    filename_prefix = sanitize_filename(os.path.splitext(os.path.basename(input_path))[0])[:50]
     temp_dir = tempfile.mkdtemp(prefix="convert_")
     try:
         output_temp = os.path.join(temp_dir, f"{filename_prefix}.{output_format}")
         cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
                "-i", input_path, output_temp]
         subprocess.run(cmd, check=True)
-        cache_path = os.path.join(CACHE_DIR, f"{filename_prefix}.{output_format}")
+
+        if not os.path.exists(output_temp):
+            raise RuntimeError("FFmpeg failed: output file not created.")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        cache_path = os.path.join(CACHE_DIR, f"{filename_prefix}_{timestamp}.{output_format}")
         shutil.move(output_temp, cache_path)
         return cache_path
     except subprocess.CalledProcessError as e:
@@ -61,16 +82,20 @@ def main():
     if 'audio_path' not in st.session_state:
         st.session_state['audio_path'] = None
 
-    uploaded_file = st.file_uploader("Upload a video or audio file", type=["mp4", "mov", "mkv", "avi", "mp3", "wav", "ogg", "flac", "m4a"])
+    uploaded_file = st.file_uploader(
+        "Upload a video or audio file",
+        type=["mp4", "mov", "mkv", "avi", "mp3", "wav", "ogg", "flac", "m4a"]
+    )
 
     if uploaded_file:
-        temp_input = os.path.join(tempfile.gettempdir(), sanitize_filename(uploaded_file.name))
+        filename_prefix = sanitize_filename(os.path.splitext(uploaded_file.name)[0])[:50]
+        temp_input = os.path.join(tempfile.gettempdir(), f"{filename_prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         with open(temp_input, "wb") as f:
             f.write(uploaded_file.read())
 
         if uploaded_file.name.lower().endswith(("mp4", "mov", "mkv", "avi")):
             st.info("Extracting audio from video...")
-            output_audio = extract_audio(temp_input, sanitize_filename(uploaded_file.name))
+            output_audio = extract_audio(temp_input, filename_prefix)
             if output_audio:
                 st.session_state['audio_path'] = output_audio
                 st.success("Audio extracted successfully.")
@@ -89,7 +114,7 @@ def main():
                 "💾 Download Audio",
                 data=audio_bytes,
                 file_name=os.path.basename(audio_path),
-                mime="audio/mpeg"
+                mime=MIME_MAP.get(os.path.splitext(audio_path)[1][1:], "audio/mpeg")
             )
         except Exception as e:
             st.error(f"Failed to play/download audio: {e}")
@@ -108,7 +133,7 @@ def main():
                     "💾 Download Converted Audio",
                     data=converted_bytes,
                     file_name=os.path.basename(converted_path),
-                    mime=f"audio/{target_format}"
+                    mime=MIME_MAP.get(target_format, "audio/mpeg")
                 )
 
 
