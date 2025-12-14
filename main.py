@@ -26,11 +26,17 @@ roaster_page = st.Page(
     icon="📃",
 )
 
+converter_page = st.Page(
+    page="views/converter.py",
+    title="Audio Converter",
+    icon="🎚️",
+)
+
 # NAVIGATION WITH SECTIONS
 pg = st.navigation({
     "MEDIA DOWNLOAD": [vid_download_page, music_download_page],
     "SCRAPER": [scraper_page],
-    "OTHER UTILITIES": [roaster_page],
+    "OTHER UTILITIES": [roaster_page, converter_page],
 })
 
 # SHARED ON ALL PAGES
