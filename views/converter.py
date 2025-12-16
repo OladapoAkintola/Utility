@@ -164,7 +164,7 @@ def load_audio_bytes(path: str):
 
 
 def main():
-    st.set_page_config(page_title="Audio Converter", page_icon="🎵", layout="wide")
+    #st.set_page_config(page_title="Audio Converter", page_icon="🎵", layout="wide")
     
     # Header
     st.title("🎵 Audio Converter & Extractor")
