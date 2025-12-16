@@ -145,7 +145,7 @@ def display_audio_info(audio_path: str):
 
 
 def main():
-    st.set_page_config(page_title="Audio Converter", page_icon="🎵", layout="wide")
+    #st.set_page_config(page_title="Audio Converter", page_icon="🎵", layout="wide")
     
     # Header
     st.title("🎵 Audio Converter & Extractor")
@@ -166,12 +166,7 @@ def main():
             st.success("✅ FFmpeg: Available")
         else:
             st.error("❌ FFmpeg: Not Found")
-            st.markdown("""
-            **Install FFmpeg:**
-            - **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
-            - **Mac**: `brew install ffmpeg`
-            - **Linux**: `sudo apt install ffmpeg`
-            """)
+            
         
         st.divider()
         st.header("ℹ️ Supported Formats")
