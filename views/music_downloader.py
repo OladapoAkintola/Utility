@@ -550,7 +550,7 @@ def main():
 
     # Sidebar info
     with st.sidebar:
-        st.header("ℹ️ About")
+        st.header("ℹ️ About(Music Downloader)")
         st.markdown("""
         **Features:**
         - 🔍 Multi-source search (YouTube & SoundCloud)
