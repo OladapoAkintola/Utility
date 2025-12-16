@@ -30,6 +30,8 @@ MIME_MAP = {
 
 def get_file_size(path: str) -> str:
     """Get human-readable file size."""
+    if not os.path.exists(path):
+        return "Unknown"
     size = os.path.getsize(path)
     for unit in ['B', 'KB', 'MB', 'GB']:
         if size < 1024.0:
@@ -41,6 +43,8 @@ def get_file_size(path: str) -> str:
 def get_audio_duration(path: str) -> str:
     """Get audio duration using ffprobe."""
     try:
+        if not os.path.exists(path):
+            return "Unknown"
         cmd = [
             "ffprobe", "-v", "error", "-show_entries",
             "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path
@@ -57,7 +61,7 @@ def get_audio_duration(path: str) -> str:
 def extract_audio(video_path: str, filename_prefix: str, progress_placeholder) -> str:
     """Extract audio from a video and return the cached path."""
     if not ffmpeg_available():
-        st.error("❌ FFmpeg not found. Please install FFmpeg and add it to your PATH.")
+        progress_placeholder.error("❌ FFmpeg not found. Please install FFmpeg and add it to your PATH.")
         return None
 
     temp_dir = tempfile.mkdtemp(prefix="extract_")
@@ -89,7 +93,11 @@ def extract_audio(video_path: str, filename_prefix: str, progress_placeholder) -
 def convert_audio(input_path: str, output_format: str, progress_placeholder) -> str:
     """Convert audio file to another format."""
     if not ffmpeg_available():
-        st.error("❌ FFmpeg not found. Please install FFmpeg and add it to your PATH.")
+        progress_placeholder.error("❌ FFmpeg not found. Please install FFmpeg and add it to your PATH.")
+        return None
+
+    if not os.path.exists(input_path):
+        progress_placeholder.error(f"❌ Input file not found: {input_path}")
         return None
 
     filename_prefix = sanitize_filename(os.path.splitext(os.path.basename(input_path))[0])[:50]
@@ -144,8 +152,19 @@ def display_audio_info(audio_path: str):
         st.metric("File Size", file_size)
 
 
+def load_audio_bytes(path: str):
+    """Safely load audio file bytes."""
+    try:
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                return f.read()
+    except Exception as e:
+        st.error(f"Error loading audio: {e}")
+    return None
+
+
 def main():
-    #st.set_page_config(page_title="Audio Converter", page_icon="🎵", layout="wide")
+    st.set_page_config(page_title="Audio Converter", page_icon="🎵", layout="wide")
     
     # Header
     st.title("🎵 Audio Converter & Extractor")
@@ -154,10 +173,16 @@ def main():
     # Initialize session state
     if 'audio_path' not in st.session_state:
         st.session_state['audio_path'] = None
+    if 'audio_bytes' not in st.session_state:
+        st.session_state['audio_bytes'] = None
     if 'original_filename' not in st.session_state:
         st.session_state['original_filename'] = None
     if 'conversion_history' not in st.session_state:
         st.session_state['conversion_history'] = []
+    if 'converted_bytes' not in st.session_state:
+        st.session_state['converted_bytes'] = None
+    if 'converted_format' not in st.session_state:
+        st.session_state['converted_format'] = None
 
     # Check FFmpeg availability
     with st.sidebar:
@@ -166,7 +191,12 @@ def main():
             st.success("✅ FFmpeg: Available")
         else:
             st.error("❌ FFmpeg: Not Found")
-            
+            st.markdown("""
+            **Install FFmpeg:**
+            - **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+            - **Mac**: `brew install ffmpeg`
+            - **Linux**: `sudo apt install ffmpeg`
+            """)
         
         st.divider()
         st.header("ℹ️ Supported Formats")
@@ -220,17 +250,28 @@ def main():
         # Handle video files (extract audio)
         if uploaded_file.name.lower().endswith(("mp4", "mov", "mkv", "avi")):
             output_audio = extract_audio(temp_input, filename_prefix, progress_placeholder)
-            if output_audio:
+            if output_audio and os.path.exists(output_audio):
                 st.session_state['audio_path'] = output_audio
+                st.session_state['audio_bytes'] = load_audio_bytes(output_audio)
                 st.session_state['conversion_history'].append(f"Extracted from {uploaded_file.name}")
+                st.session_state['converted_bytes'] = None  # Reset converted
         else:
             # Handle audio files
             st.session_state['audio_path'] = temp_input
+            st.session_state['audio_bytes'] = load_audio_bytes(temp_input)
+            st.session_state['converted_bytes'] = None  # Reset converted
             progress_placeholder.success("✅ Audio file uploaded successfully!")
 
     # Audio preview and conversion section
-    if st.session_state.get('audio_path'):
+    if st.session_state.get('audio_path') and st.session_state.get('audio_bytes'):
         audio_path = st.session_state['audio_path']
+        
+        # Verify file still exists
+        if not os.path.exists(audio_path):
+            st.error("❌ Audio file no longer exists. Please re-upload.")
+            st.session_state['audio_path'] = None
+            st.session_state['audio_bytes'] = None
+            st.stop()
         
         st.divider()
         st.subheader("🎧 Step 2: Preview & Download")
@@ -239,25 +280,22 @@ def main():
         display_audio_info(audio_path)
         
         # Audio player
-        try:
-            with open(audio_path, "rb") as f:
-                audio_bytes = f.read()
-            
-            st.audio(audio_bytes, format=f"audio/{os.path.splitext(audio_path)[1][1:]}")
-            
-            # Download current version
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.download_button(
-                    "💾 Download Current Audio",
-                    data=audio_bytes,
-                    file_name=os.path.basename(audio_path),
-                    mime=MIME_MAP.get(os.path.splitext(audio_path)[1][1:], "audio/mpeg"),
-                    use_container_width=True,
-                    type="primary"
-                )
-        except Exception as e:
-            st.error(f"❌ Failed to load audio: {e}")
+        audio_bytes = st.session_state['audio_bytes']
+        current_format = os.path.splitext(audio_path)[1][1:]
+        
+        st.audio(audio_bytes, format=f"audio/{current_format}")
+        
+        # Download current version
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.download_button(
+                "💾 Download Current Audio",
+                data=audio_bytes,
+                file_name=os.path.basename(audio_path),
+                mime=MIME_MAP.get(current_format, "audio/mpeg"),
+                use_container_width=True,
+                type="primary"
+            )
 
         # Conversion section
         st.divider()
@@ -299,40 +337,59 @@ def main():
             else:
                 converted_path = convert_audio(audio_path, selected_format, progress_placeholder)
                 
-                if converted_path:
-                    st.session_state['audio_path'] = converted_path
-                    st.session_state['conversion_history'].append(
-                        f"{current_format.upper()} → {selected_format.upper()}"
-                    )
+                if converted_path and os.path.exists(converted_path):
+                    # Load the converted file bytes immediately
+                    converted_bytes = load_audio_bytes(converted_path)
                     
-                    # Show before/after comparison
-                    st.success("🎉 Conversion Complete!")
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("Original Size", get_file_size(audio_path), delta=None)
-                    with col2:
-                        new_size = get_file_size(converted_path)
-                        st.metric("New Size", new_size)
-                    
-                    # Play converted audio
-                    st.write("**Preview Converted Audio:**")
-                    with open(converted_path, "rb") as f:
-                        converted_bytes = f.read()
-                    st.audio(converted_bytes, format=f"audio/{selected_format}")
-                    
-                    # Download converted version
-                    st.download_button(
-                        f"💾 Download {selected_format.upper()} File",
-                        data=converted_bytes,
-                        file_name=os.path.basename(converted_path),
-                        mime=MIME_MAP.get(selected_format, "audio/mpeg"),
-                        use_container_width=True,
-                        type="primary"
-                    )
-                    
-                    # Rerun to update display
-                    st.rerun()
+                    if converted_bytes:
+                        # Store in session state
+                        st.session_state['audio_path'] = converted_path
+                        st.session_state['audio_bytes'] = converted_bytes
+                        st.session_state['converted_bytes'] = converted_bytes
+                        st.session_state['converted_format'] = selected_format
+                        st.session_state['conversion_history'].append(
+                            f"{current_format.upper()} → {selected_format.upper()}"
+                        )
+                        
+                        # Show success without rerun
+                        st.success("🎉 Conversion Complete!")
+                        
+                        # Show before/after comparison
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Original Format", current_format.upper())
+                        with col2:
+                            st.metric("New Format", selected_format.upper())
+                        
+                        # Play converted audio
+                        st.write("**Preview Converted Audio:**")
+                        st.audio(converted_bytes, format=f"audio/{selected_format}")
+                        
+                        # Download converted version
+                        st.download_button(
+                            f"💾 Download {selected_format.upper()} File",
+                            data=converted_bytes,
+                            file_name=os.path.basename(converted_path),
+                            mime=MIME_MAP.get(selected_format, "audio/mpeg"),
+                            use_container_width=True,
+                            type="primary",
+                            key=f"download_converted_{selected_format}"
+                        )
+        
+        # Show previously converted file if exists
+        elif st.session_state.get('converted_bytes') and st.session_state.get('converted_format'):
+            st.info("💡 You have a converted file ready!")
+            converted_format = st.session_state['converted_format']
+            st.audio(st.session_state['converted_bytes'], format=f"audio/{converted_format}")
+            st.download_button(
+                f"💾 Download {converted_format.upper()} File",
+                data=st.session_state['converted_bytes'],
+                file_name=f"converted.{converted_format}",
+                mime=MIME_MAP.get(converted_format, "audio/mpeg"),
+                use_container_width=True,
+                type="primary",
+                key=f"download_prev_converted"
+            )
 
     # Help section
     if not uploaded_file:
