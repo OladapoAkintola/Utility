@@ -111,13 +111,19 @@ def display_thumbnail(thumbnail_url, title):
     try:
         resp = requests.get(thumbnail_url, timeout=10, stream=True)
         img = Image.open(resp.raw)
-        st.image(img, caption=title, use_column_width=True)
+        st.image(img, caption=title, use_container_width=True)
     except Exception:
         st.warning("Thumbnail not available.")
 
 
 def main():
     st.title("🎶 Max Utility - Audio Downloader")
+
+    # Initialize session state
+    if 'search_results' not in st.session_state:
+        st.session_state.search_results = None
+    if 'metadata' not in st.session_state:
+        st.session_state.metadata = {}
 
     col1, col2 = st.columns(2)
     with col1:
@@ -130,6 +136,17 @@ def main():
         genre = st.text_input("Genre")
         year = st.text_input("Year")
 
+    # Store metadata in session state
+    st.session_state.metadata = {
+        "title": title,
+        "artist": artist,
+        "album": album or None,
+        "album_artist": album_artist or None,
+        "track_number": track_number or None,
+        "genre": genre or None,
+        "year": year or None
+    }
+
     if st.button("🔍 Search & Preview"):
         if not title or not artist:
             st.error("Please enter both song title and artist name.")
@@ -138,13 +155,18 @@ def main():
         query = f"{title} {artist}"
         st.info("Searching YouTube...")
         results = search_youtube(query)
+        
         if not results:
             st.warning("No results found.")
+            st.session_state.search_results = None
             return
-
+        
+        st.session_state.search_results = results
         st.success(f"Found {len(results)} results. Preview below:")
 
-        for idx, vid in enumerate(results, start=1):
+    # Display results if they exist
+    if st.session_state.search_results:
+        for idx, vid in enumerate(st.session_state.search_results, start=1):
             st.subheader(f"{idx}. {vid.get('title')}")
             if vid.get("thumbnail"):
                 display_thumbnail(vid["thumbnail"], vid["title"])
@@ -155,11 +177,17 @@ def main():
             cached_file_mp3 = os.path.join(CACHE_PATH, sanitize_filename(f"{video_id}.mp3"))
             cached_file_webm = os.path.join(CACHE_PATH, sanitize_filename(f"{video_id}.webm"))
 
-            if st.button(f"⬇️ Download '{vid.get('title')}'", key=vid["url"]):
+            if st.button(f"⬇️ Download", key=f"download_{video_id}"):
                 if os.path.exists(cached_file_mp3):
                     st.success("✅ Using cached MP3 file.")
                     file_path, fmt = cached_file_mp3, "mp3"
-                    info = vid
+                    # Re-embed metadata on cached file
+                    with st.spinner("Updating metadata..."):
+                        # Get full info for metadata
+                        ydl_opts = {"quiet": True, "skip_download": True}
+                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                            info = ydl.extract_info(vid["url"], download=False)
+                        embed_metadata(file_path, info, st.session_state.metadata)
                 elif os.path.exists(cached_file_webm):
                     st.success("✅ Using cached WebM file.")
                     file_path, fmt = cached_file_webm, "webm"
@@ -172,29 +200,21 @@ def main():
                             st.error(f"❌ Download failed: {e}")
                             continue
 
-                # Embed metadata if mp3
-                metadata_inputs = {
-                    "title": title,
-                    "artist": artist,
-                    "album": album or None,
-                    "album_artist": album_artist or None,
-                    "track_number": track_number or None,
-                    "genre": genre or None,
-                    "year": year or None
-                }
-                if fmt == "mp3":
-                    embed_metadata(file_path, info, metadata_inputs)
-                    st.success(f"✅ Downloaded & tagged: {info.get('title', 'Unknown')}")
-                else:
-                    st.warning("⚠️ Downloaded as WebM (no tagging applied).")
+                    # Embed metadata if mp3
+                    if fmt == "mp3":
+                        embed_metadata(file_path, info, st.session_state.metadata)
+                        st.success(f"✅ Downloaded & tagged: {info.get('title', 'Unknown')}")
+                    else:
+                        st.warning("⚠️ Downloaded as WebM (no tagging applied).")
 
                 # Provide download button
                 with open(file_path, "rb") as f:
                     st.download_button(
-                        f"⬇️ Download {fmt.upper()}",
+                        f"💾 Save {fmt.upper()} File",
                         f,
                         file_name=os.path.basename(file_path),
-                        mime="audio/mpeg" if fmt == "mp3" else "audio/webm"
+                        mime="audio/mpeg" if fmt == "mp3" else "audio/webm",
+                        key=f"save_{video_id}"
                     )
 
 
