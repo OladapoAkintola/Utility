@@ -3,8 +3,9 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import time
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, quote_plus
 import pandas as pd
+import random
 
 def is_valid_url(url):
     """Check if URL is valid."""
@@ -48,7 +49,7 @@ def extract_emails_from_text(text):
     # Filter out common false positives
     filtered_emails = [
         email for email in emails 
-        if not any(x in email.lower() for x in ['example.com', 'yoursite.com', 'yourdomain.com', 'sentry.io'])
+        if not any(x in email.lower() for x in ['example.com', 'yoursite.com', 'yourdomain.com', 'sentry.io', 'schema.org'])
     ]
     
     return list(set(filtered_emails))
@@ -72,6 +73,178 @@ def find_contact_pages(base_url):
     pages_to_check.insert(0, base_url)  # Check homepage first
     
     return pages_to_check
+
+def search_shopify_stores_google(query, num_results=10, progress_callback=None):
+    """Search for Shopify stores using Google search."""
+    stores = []
+    
+    # Google search query to find Shopify stores
+    search_queries = [
+        f'{query} site:myshopify.com',
+        f'{query} "powered by shopify"',
+        f'{query} shopify store'
+    ]
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
+    for idx, search_query in enumerate(search_queries):
+        if progress_callback:
+            progress_callback((idx + 1) / len(search_queries), f"Searching with query {idx + 1}/{len(search_queries)}...")
+        
+        try:
+            # Use Google Custom Search (free tier) or DuckDuckGo as alternative
+            # For demo purposes, we'll use a simple approach
+            encoded_query = quote_plus(search_query)
+            search_url = f"https://www.google.com/search?q={encoded_query}&num={num_results}"
+            
+            response = requests.get(search_url, headers=headers, timeout=10)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Extract URLs from search results
+            for link in soup.find_all('a'):
+                href = link.get('href', '')
+                if '/url?q=' in href:
+                    # Extract actual URL from Google redirect
+                    url = href.split('/url?q=')[1].split('&')[0]
+                    
+                    # Clean and validate
+                    if url.startswith('http') and not any(x in url for x in ['google.com', 'youtube.com']):
+                        # Check if it's a myshopify.com subdomain
+                        if 'myshopify.com' in url:
+                            stores.append(url)
+                        # Or try to get the main domain if it mentions shopify
+                        elif 'shopify' in href.lower():
+                            domain = urlparse(url).netloc
+                            clean_url = f"https://{domain}"
+                            if clean_url not in stores:
+                                stores.append(clean_url)
+            
+            time.sleep(2)  # Be respectful with search requests
+            
+        except Exception as e:
+            continue
+    
+    # Remove duplicates and limit results
+    unique_stores = list(set(stores))[:num_results]
+    
+    # Verify they're actually Shopify stores
+    if progress_callback:
+        progress_callback(0.9, "Verifying Shopify stores...")
+    
+    verified_stores = []
+    for store in unique_stores[:num_results]:
+        try:
+            if is_shopify_store(store):
+                verified_stores.append(store)
+            time.sleep(0.5)
+        except:
+            continue
+    
+    return verified_stores
+
+def search_shopify_stores_duckduckgo(query, num_results=10, progress_callback=None):
+    """Alternative search using DuckDuckGo."""
+    stores = []
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+    
+    try:
+        if progress_callback:
+            progress_callback(0.2, "Searching DuckDuckGo...")
+        
+        # DuckDuckGo HTML search
+        encoded_query = quote_plus(f'{query} myshopify.com OR "powered by shopify"')
+        search_url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+        
+        response = requests.get(search_url, headers=headers, timeout=15)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Extract URLs
+        for link in soup.find_all('a', class_='result__url'):
+            href = link.get('href', '')
+            if href.startswith('http'):
+                stores.append(href)
+        
+        # Also check direct links
+        for result in soup.find_all('a', class_='result__a'):
+            href = result.get('href', '')
+            if '//' in href:
+                try:
+                    # Extract actual URL
+                    url = href.split('uddg=')[1] if 'uddg=' in href else href
+                    if url.startswith('http'):
+                        stores.append(url)
+                except:
+                    continue
+        
+    except Exception as e:
+        if progress_callback:
+            progress_callback(0.5, f"Search error: {str(e)[:50]}")
+    
+    # Remove duplicates
+    unique_stores = list(set(stores))[:num_results * 2]
+    
+    # Verify they're Shopify stores
+    if progress_callback:
+        progress_callback(0.6, "Verifying stores...")
+    
+    verified_stores = []
+    for idx, store in enumerate(unique_stores):
+        if len(verified_stores) >= num_results:
+            break
+        
+        try:
+            if progress_callback:
+                progress_callback(0.6 + (0.3 * idx / len(unique_stores)), f"Checking store {idx + 1}...")
+            
+            if is_shopify_store(store):
+                verified_stores.append(store)
+            time.sleep(0.5)
+        except:
+            continue
+    
+    return verified_stores
+
+def discover_shopify_stores(niche=None, num_results=10, progress_callback=None):
+    """Discover Shopify stores by niche or randomly."""
+    
+    if niche:
+        # Search for stores in specific niche
+        queries = [
+            f"{niche} store",
+            f"{niche} shop",
+            f"buy {niche} online"
+        ]
+        query = random.choice(queries)
+    else:
+        # Random popular niches
+        niches = [
+            "fashion", "jewelry", "home decor", "fitness", "beauty",
+            "tech accessories", "pet supplies", "art", "kids toys",
+            "outdoor gear", "sustainable products", "handmade"
+        ]
+        niche = random.choice(niches)
+        query = f"{niche} store"
+    
+    if progress_callback:
+        progress_callback(0.1, f"Searching for {niche} stores...")
+    
+    # Try DuckDuckGo first (more reliable for automated searches)
+    stores = search_shopify_stores_duckduckgo(query, num_results, progress_callback)
+    
+    # If not enough results, try another niche
+    if len(stores) < num_results // 2 and not niche:
+        if progress_callback:
+            progress_callback(0.5, "Trying additional search...")
+        backup_niche = random.choice([n for n in niches if n != niche])
+        backup_stores = search_shopify_stores_duckduckgo(f"{backup_niche} store", num_results // 2, progress_callback)
+        stores.extend(backup_stores)
+    
+    return list(set(stores))[:num_results]
 
 def scrape_store_info(url, progress_callback=None):
     """Scrape publicly available contact information from a Shopify store."""
@@ -210,11 +383,11 @@ def main():
     # Initialize session state
     if 'results' not in st.session_state:
         st.session_state['results'] = None
-    if 'search_type' not in st.session_state:
-        st.session_state['search_type'] = 'single'
+    if 'discovered_stores' not in st.session_state:
+        st.session_state['discovered_stores'] = None
     
-    # Tabs for single vs bulk
-    tab1, tab2 = st.tabs(["🔍 Single Store", "📊 Bulk Search"])
+    # Tabs for different modes
+    tab1, tab2, tab3 = st.tabs(["🔍 Single Store", "📊 Bulk Search", "🎯 Auto-Discover Stores"])
     
     with tab1:
         st.subheader("Find Contact Info for a Single Store")
@@ -225,11 +398,10 @@ def main():
             help="Enter the full URL of the Shopify store"
         )
         
-        if st.button("🔎 Find Contact Info", use_container_width=True, type="primary"):
+        if st.button("🔎 Find Contact Info", use_container_width=True, type="primary", key="single_search"):
             if not single_url.strip():
                 st.error("❌ Please enter a URL")
             else:
-                st.session_state['search_type'] = 'single'
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
@@ -261,13 +433,12 @@ def main():
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            if st.button("🔎 Find All Contact Info", use_container_width=True, type="primary"):
+            if st.button("🔎 Find All Contact Info", use_container_width=True, type="primary", key="bulk_search"):
                 urls = [url.strip() for url in bulk_input.split('\n') if url.strip()]
                 
                 if not urls:
                     st.error("❌ Please enter at least one URL")
                 else:
-                    st.session_state['search_type'] = 'bulk'
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
@@ -287,10 +458,109 @@ def main():
         with col2:
             st.caption(f"💡 Be respectful\nMax 10 stores recommended")
     
+    with tab3:
+        st.subheader("🎯 Automatically Discover Shopify Stores")
+        st.markdown("Let the tool find Shopify stores for you based on niche or randomly")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            niche_input = st.text_input(
+                "Niche/Category (optional):",
+                placeholder="e.g., fashion, jewelry, home decor, fitness, beauty",
+                help="Leave empty for random discovery across popular niches"
+            )
+        
+        with col2:
+            num_stores = st.number_input(
+                "Number of stores:",
+                min_value=1,
+                max_value=20,
+                value=5,
+                step=1,
+                help="How many stores to discover (max 20)"
+            )
+        
+        st.info("💡 **Tip:** Leave niche empty to discover stores randomly, or specify a niche for targeted results")
+        
+        col_discover, col_use = st.columns([2, 1])
+        
+        with col_discover:
+            if st.button("🚀 Discover Stores", use_container_width=True, type="primary", key="discover"):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                def update_progress(value, message):
+                    progress_bar.progress(value)
+                    status_text.info(message)
+                
+                niche = niche_input.strip() if niche_input.strip() else None
+                stores = discover_shopify_stores(niche, num_stores, update_progress)
+                
+                progress_bar.empty()
+                status_text.empty()
+                
+                if stores:
+                    st.session_state['discovered_stores'] = stores
+                    st.success(f"✅ Discovered {len(stores)} Shopify stores!")
+                else:
+                    st.warning("⚠️ No stores found. Try a different niche or try again.")
+        
+        # Display discovered stores
+        if st.session_state.get('discovered_stores'):
+            st.divider()
+            st.subheader("📋 Discovered Stores")
+            
+            discovered = st.session_state['discovered_stores']
+            
+            # Show list with checkboxes for selection
+            st.markdown(f"**Found {len(discovered)} store(s):**")
+            
+            selected_stores = []
+            for idx, store in enumerate(discovered, 1):
+                if st.checkbox(f"{idx}. {store}", value=True, key=f"store_select_{idx}"):
+                    selected_stores.append(store)
+            
+            st.divider()
+            
+            col_scrape, col_copy = st.columns([2, 1])
+            
+            with col_scrape:
+                if st.button("📧 Get Contact Info for Selected", use_container_width=True, type="primary", key="scrape_discovered"):
+                    if not selected_stores:
+                        st.error("❌ Please select at least one store")
+                    else:
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        def update_progress(value, message):
+                            progress_bar.progress(value)
+                            status_text.info(message)
+                        
+                        results = bulk_scrape_stores(selected_stores, update_progress)
+                        
+                        progress_bar.empty()
+                        status_text.empty()
+                        
+                        st.session_state['results'] = results
+                        success_count = len([r for r in results if "error" not in r])
+                        st.success(f"✅ Processed {success_count}/{len(results)} stores successfully!")
+            
+            with col_copy:
+                # Copy URLs to clipboard
+                urls_text = '\n'.join(selected_stores)
+                st.download_button(
+                    "📋 Copy URLs",
+                    data=urls_text,
+                    file_name="discovered_stores.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
+    
     # Display results
     if st.session_state.get('results'):
         st.divider()
-        st.subheader("📋 Results")
+        st.subheader("📋 Contact Information Results")
         
         results = st.session_state['results']
         
@@ -299,13 +569,16 @@ def main():
         total_phones = sum(len(r.get('phone_numbers', [])) for r in results if 'error' not in r)
         success_count = len([r for r in results if 'error' not in r])
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Stores Processed", success_count)
         with col2:
             st.metric("Emails Found", total_emails)
         with col3:
             st.metric("Phone Numbers", total_phones)
+        with col4:
+            avg_emails = total_emails / success_count if success_count > 0 else 0
+            st.metric("Avg. Emails/Store", f"{avg_emails:.1f}")
         
         st.divider()
         
@@ -326,7 +599,11 @@ def main():
                 if result.get('emails'):
                     st.write("**📧 Email Addresses:**")
                     for email in result['emails']:
-                        st.code(email, language=None)
+                        col_email, col_copy = st.columns([4, 1])
+                        with col_email:
+                            st.code(email, language=None)
+                        with col_copy:
+                            st.button("📋", key=f"copy_email_{idx}_{email}", help="Click to highlight")
                 else:
                     st.info("No email addresses found")
                 
@@ -382,6 +659,7 @@ def main():
             with col_clear:
                 if st.button("🗑️ Clear Results", use_container_width=True):
                     st.session_state['results'] = None
+                    st.session_state['discovered_stores'] = None
                     st.rerun()
     
     # Help section
@@ -389,23 +667,47 @@ def main():
         st.header("ℹ️ How to Use")
         
         st.markdown("""
-        **Steps:**
-        1. Enter Shopify store URL(s)
-        2. Click "Find Contact Info"
-        3. Review the results
-        4. Export to CSV if needed
+        **3 Ways to Find Stores:**
+        
+        1️⃣ **Single Store**
+        - Enter a known store URL
+        - Get contact info instantly
+        
+        2️⃣ **Bulk Search**
+        - Paste multiple store URLs
+        - Process all at once
+        
+        3️⃣ **Auto-Discover** ⭐
+        - Specify a niche or go random
+        - Tool finds stores for you
+        - Select which to scrape
         
         **What it finds:**
         - 📧 Email addresses
         - 📞 Phone numbers
         - 🔗 Social media links
         - 🏪 Store information
+        """)
         
-        **Tips:**
-        - Check contact/about pages
-        - Some stores hide contact info
-        - Respect rate limits
-        - Use data ethically
+        st.divider()
+        
+        st.header("💡 Tips")
+        st.markdown("""
+        **For Best Results:**
+        - Try specific niches (e.g., "eco fashion")
+        - Check multiple pages
+        - Verify email validity
+        - Be patient with discovery
+        
+        **Popular Niches:**
+        - Fashion & Apparel
+        - Jewelry & Accessories
+        - Home & Living
+        - Beauty & Cosmetics
+        - Tech Accessories
+        - Pet Supplies
+        - Art & Crafts
+        - Fitness & Wellness
         """)
         
         st.divider()
