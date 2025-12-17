@@ -32,11 +32,17 @@ converter_page = st.Page(
     icon="🎚️",
 )
 
+image_converter_page = st.Page(
+    page="views/image_converter.py",
+    title="Image Converter",
+    icon="🖼️",
+)
+
 # NAVIGATION WITH SECTIONS
 pg = st.navigation({
     "MEDIA DOWNLOAD": [vid_download_page, music_download_page],
     "SCRAPER": [scraper_page],
-    "OTHER UTILITIES": [roaster_page, converter_page],
+    "OTHER UTILITIES": [roaster_page, converter_page, image_converter_page],
 })
 
 # SHARED ON ALL PAGES
