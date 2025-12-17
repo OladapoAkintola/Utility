@@ -4,7 +4,7 @@ import io
 from typing import Tuple, Optional
 
 # Page configuration
-st.set_page_config(page_title="Image Converter", page_icon="🖼️")
+#st.set_page_config(page_title="Image #Converter", page_icon="🖼️")
 
 # Custom CSS for better UI
 st.markdown("""
