@@ -50,7 +50,6 @@ def search_soundcloud(query, max_results=5):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             result = ydl.extract_info(f"scsearch{max_results}:{query}", download=False)
         entries = result.get("entries", [])
-        # Mark entries as SoundCloud
         for entry in entries:
             entry['source'] = 'SoundCloud'
         return entries, None
@@ -58,29 +57,171 @@ def search_soundcloud(query, max_results=5):
         return [], str(e)
 
 
-def search_all_sources(query, max_results=5):
-    """Search all available sources and combine results."""
+def search_bandcamp(query, max_results=5):
+    """Search Bandcamp and return metadata."""
+    try:
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "quiet": True,
+            "skip_download": True,
+            "extract_flat": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.extract_info(f"bcsearch{max_results}:{query}", download=False)
+        entries = result.get("entries", [])
+        for entry in entries:
+            entry['source'] = 'Bandcamp'
+        return entries, None
+    except Exception as e:
+        return [], str(e)
+
+
+def search_bilibili(query, max_results=5):
+    """Search Bilibili and return metadata."""
+    try:
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "quiet": True,
+            "skip_download": True,
+            "extract_flat": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.extract_info(f"bilisearch{max_results}:{query}", download=False)
+        entries = result.get("entries", [])
+        for entry in entries:
+            entry['source'] = 'Bilibili'
+        return entries, None
+    except Exception as e:
+        return [], str(e)
+
+
+def search_niconico(query, max_results=5):
+    """Search Niconico and return metadata."""
+    try:
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "quiet": True,
+            "skip_download": True,
+            "extract_flat": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.extract_info(f"nicosearch{max_results}:{query}", download=False)
+        entries = result.get("entries", [])
+        for entry in entries:
+            entry['source'] = 'Niconico'
+        return entries, None
+    except Exception as e:
+        return [], str(e)
+
+
+def download_from_url(url):
+    """
+    Download audio from a direct URL (TikTok, Instagram, Twitter, etc.)
+    Returns video info without downloading.
+    """
+    try:
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "quiet": True,
+            "skip_download": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+        return info, None
+    except Exception as e:
+        return None, str(e)
+
+
+def detect_platform(url):
+    """Detect the platform from URL."""
+    url_lower = url.lower()
+    if 'tiktok.com' in url_lower or 'vm.tiktok.com' in url_lower:
+        return 'TikTok', '🎬'
+    elif 'instagram.com' in url_lower:
+        return 'Instagram', '📷'
+    elif 'twitter.com' in url_lower or 'x.com' in url_lower:
+        return 'Twitter/X', '🐦'
+    elif 'facebook.com' in url_lower or 'fb.watch' in url_lower:
+        return 'Facebook', '👥'
+    elif 'youtube.com' in url_lower or 'youtu.be' in url_lower:
+        return 'YouTube', '🎥'
+    elif 'soundcloud.com' in url_lower:
+        return 'SoundCloud', '🎵'
+    elif 'bandcamp.com' in url_lower:
+        return 'Bandcamp', '🎸'
+    elif 'bilibili.com' in url_lower:
+        return 'Bilibili', '📺'
+    elif 'nicovideo.jp' in url_lower:
+        return 'Niconico', '🎌'
+    elif 'twitch.tv' in url_lower:
+        return 'Twitch', '🟣'
+    elif 'reddit.com' in url_lower:
+        return 'Reddit', '🔴'
+    elif 'vimeo.com' in url_lower:
+        return 'Vimeo', '🎞️'
+    else:
+        return 'Unknown', '🌐'
+
+
+def search_all_sources(query, max_results=5, selected_sources=None):
+    """Search selected sources and combine results."""
     all_results = []
     errors = []
-    
+
+    if selected_sources is None:
+        selected_sources = ['YouTube', 'SoundCloud', 'Bandcamp']
+
     # Search YouTube
-    with st.spinner("🔍 Searching YouTube..."):
-        yt_results, yt_error = search_youtube(query, max_results)
-        if yt_results:
-            for entry in yt_results:
-                entry['source'] = 'YouTube'
-            all_results.extend(yt_results)
-        if yt_error:
-            errors.append(f"YouTube: {yt_error}")
-    
+    if 'YouTube' in selected_sources:
+        with st.spinner("🔍 Searching YouTube..."):
+            yt_results, yt_error = search_youtube(query, max_results)
+            if yt_results:
+                for entry in yt_results:
+                    entry['source'] = 'YouTube'
+                all_results.extend(yt_results)
+            if yt_error:
+                errors.append(f"YouTube: {yt_error}")
+
     # Search SoundCloud
-    with st.spinner("🔍 Searching SoundCloud..."):
-        sc_results, sc_error = search_soundcloud(query, max_results)
-        if sc_results:
-            all_results.extend(sc_results)
-        if sc_error:
-            errors.append(f"SoundCloud: {sc_error}")
-    
+    if 'SoundCloud' in selected_sources:
+        with st.spinner("🔍 Searching SoundCloud..."):
+            sc_results, sc_error = search_soundcloud(query, max_results)
+            if sc_results:
+                all_results.extend(sc_results)
+            if sc_error:
+                errors.append(f"SoundCloud: {sc_error}")
+
+    # Search Bandcamp
+    if 'Bandcamp' in selected_sources:
+        with st.spinner("🔍 Searching Bandcamp..."):
+            bc_results, bc_error = search_bandcamp(query, max_results)
+            if bc_results:
+                all_results.extend(bc_results)
+            if bc_error:
+                errors.append(f"Bandcamp: {bc_error}")
+
+    # Search Bilibili
+    if 'Bilibili' in selected_sources:
+        with st.spinner("🔍 Searching Bilibili..."):
+            bili_results, bili_error = search_bilibili(query, max_results)
+            if bili_results:
+                all_results.extend(bili_results)
+            if bili_error:
+                errors.append(f"Bilibili: {bili_error}")
+
+    # Search Niconico
+    if 'Niconico' in selected_sources:
+        with st.spinner("🔍 Searching Niconico..."):
+            nico_results, nico_error = search_niconico(query, max_results)
+            if nico_results:
+                all_results.extend(nico_results)
+            if nico_error:
+                errors.append(f"Niconico: {nico_error}")
+
     return all_results, errors
 
 
@@ -107,7 +248,7 @@ def download_audio(video_url, video_id, save_path=SAVE_PATH, progress_callback=N
     try:
         if progress_callback:
             progress_callback(0.1, "Converting to MP3...")
-        
+
         ydl_opts = {
             "format": "bestaudio/best",
             "quiet": True,
@@ -122,7 +263,7 @@ def download_audio(video_url, video_id, save_path=SAVE_PATH, progress_callback=N
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=True)
-        
+
         if os.path.exists(file_path_mp3):
             return file_path_mp3, info, "mp3", None
     except Exception as e:
@@ -138,7 +279,7 @@ def download_audio(video_url, video_id, save_path=SAVE_PATH, progress_callback=N
     try:
         if progress_callback:
             progress_callback(0.4, "Converting to M4A...")
-        
+
         ydl_opts = {
             "format": "bestaudio[ext=m4a]/bestaudio",
             "quiet": True,
@@ -152,7 +293,7 @@ def download_audio(video_url, video_id, save_path=SAVE_PATH, progress_callback=N
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=True)
-        
+
         if os.path.exists(file_path_m4a):
             return file_path_m4a, info, "m4a", None
     except Exception as e:
@@ -163,7 +304,7 @@ def download_audio(video_url, video_id, save_path=SAVE_PATH, progress_callback=N
     try:
         if progress_callback:
             progress_callback(0.7, "Downloading original format...")
-        
+
         ydl_opts = {
             "format": "bestaudio/best",
             "quiet": True,
@@ -173,13 +314,13 @@ def download_audio(video_url, video_id, save_path=SAVE_PATH, progress_callback=N
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=True)
-        
+
         # Find the actual downloaded file
         for ext in ['webm', 'opus', 'm4a', 'mp4', 'mp3']:
             potential_path = os.path.join(save_path, f"{video_id}.{ext}")
             if os.path.exists(potential_path):
                 return potential_path, info, ext, None
-                
+
         raise Exception("Could not find downloaded file")
     except Exception as e:
         error_msg = str(e)
@@ -189,19 +330,19 @@ def download_audio(video_url, video_id, save_path=SAVE_PATH, progress_callback=N
 def get_error_message(error_str):
     """Convert technical errors to user-friendly messages."""
     error_lower = error_str.lower()
-    
+
     if "unavailable" in error_lower or "video unavailable" in error_lower:
-        return "❌ This video is unavailable or has been removed."
+        return "❌ This content is unavailable or has been removed."
     elif "private" in error_lower:
-        return "❌ This video is private and cannot be downloaded."
+        return "❌ This content is private and cannot be downloaded."
     elif "copyright" in error_lower or "blocked" in error_lower:
-        return "❌ This video is blocked due to copyright restrictions."
+        return "❌ This content is blocked due to copyright restrictions."
     elif "age" in error_lower and "restricted" in error_lower:
-        return "❌ This video is age-restricted and cannot be downloaded."
+        return "❌ This content is age-restricted and cannot be downloaded."
     elif "live" in error_lower:
         return "❌ Live streams cannot be downloaded."
     elif "geographic" in error_lower or "not available in your country" in error_lower:
-        return "❌ This video is not available in your region."
+        return "❌ This content is not available in your region."
     elif "network" in error_lower or "connection" in error_lower:
         return "⚠️ Network error. Please check your connection and try again."
     elif "timeout" in error_lower:
@@ -214,157 +355,140 @@ def get_error_message(error_str):
         return f"❌ Download failed: {error_str[:150]}"
 
 
-def embed_metadata_mp3(file_path, info, metadata_inputs):
-    """Embed ID3 tags and cover art for MP3 files."""
+def embed_metadata(file_path, video_info, user_metadata, file_format):
+    """Embed metadata into audio file."""
     try:
-        try:
-            audio = ID3(file_path)
-        except Exception:
-            audio = ID3()
-
-        audio.add(TIT2(encoding=3, text=metadata_inputs.get("title", info.get("title", "Unknown"))))
-        audio.add(TPE1(encoding=3, text=metadata_inputs.get("artist", info.get("uploader", "Unknown"))))
-
-        if metadata_inputs.get("album"):
-            audio.add(TALB(encoding=3, text=metadata_inputs["album"]))
-        if metadata_inputs.get("album_artist"):
-            audio.add(TPE2(encoding=3, text=metadata_inputs["album_artist"]))
-        if metadata_inputs.get("track_number"):
-            audio.add(TRCK(encoding=3, text=str(metadata_inputs["track_number"])))
-        if metadata_inputs.get("genre"):
-            audio.add(TCON(encoding=3, text=metadata_inputs["genre"]))
-        if metadata_inputs.get("year"):
-            audio.add(TDRC(encoding=3, text=str(metadata_inputs["year"])))
-
-        thumbnail_url = info.get("thumbnail")
-        if thumbnail_url:
+        if file_format == "mp3":
             try:
-                resp = requests.get(thumbnail_url, timeout=10)
-                if resp.status_code == 200:
+                audio = ID3(file_path)
+            except:
+                audio = ID3()
+
+            # Set metadata
+            if user_metadata.get("title"):
+                audio.add(TIT2(encoding=3, text=user_metadata["title"]))
+            elif video_info.get("title"):
+                audio.add(TIT2(encoding=3, text=video_info["title"]))
+
+            if user_metadata.get("artist"):
+                audio.add(TPE1(encoding=3, text=user_metadata["artist"]))
+            elif video_info.get("uploader"):
+                audio.add(TPE1(encoding=3, text=video_info["uploader"]))
+
+            if user_metadata.get("album"):
+                audio.add(TALB(encoding=3, text=user_metadata["album"]))
+
+            if user_metadata.get("album_artist"):
+                audio.add(TPE2(encoding=3, text=user_metadata["album_artist"]))
+
+            if user_metadata.get("track_number"):
+                audio.add(TRCK(encoding=3, text=str(user_metadata["track_number"])))
+
+            if user_metadata.get("genre"):
+                audio.add(TCON(encoding=3, text=user_metadata["genre"]))
+
+            if user_metadata.get("year"):
+                audio.add(TDRC(encoding=3, text=str(user_metadata["year"])))
+
+            # Add thumbnail as cover art
+            thumbnail_url = video_info.get("thumbnail")
+            if thumbnail_url:
+                try:
+                    resp = requests.get(thumbnail_url, timeout=10)
                     audio.add(APIC(
                         encoding=3,
-                        mime=resp.headers.get("Content-Type", "image/jpeg"),
+                        mime='image/jpeg',
                         type=3,
-                        desc="Cover",
+                        desc='Cover',
                         data=resp.content
                     ))
-            except:
-                pass
-        
-        audio.save(file_path)
-        return True, None
-    except Exception as e:
-        return False, str(e)
+                except:
+                    pass
 
+            audio.save(file_path)
+            return True, None
 
-def embed_metadata_m4a(file_path, info, metadata_inputs):
-    """Embed metadata for M4A files."""
-    try:
-        audio = MP4(file_path)
-        
-        audio["\xa9nam"] = metadata_inputs.get("title", info.get("title", "Unknown"))
-        audio["\xa9ART"] = metadata_inputs.get("artist", info.get("uploader", "Unknown"))
-        
-        if metadata_inputs.get("album"):
-            audio["\xa9alb"] = metadata_inputs["album"]
-        if metadata_inputs.get("album_artist"):
-            audio["aART"] = metadata_inputs["album_artist"]
-        if metadata_inputs.get("genre"):
-            audio["\xa9gen"] = metadata_inputs["genre"]
-        if metadata_inputs.get("year"):
-            audio["\xa9day"] = str(metadata_inputs["year"])
-        if metadata_inputs.get("track_number"):
-            audio["trkn"] = [(int(metadata_inputs["track_number"]), 0)]
+        elif file_format == "m4a":
+            audio = MP4(file_path)
 
-        thumbnail_url = info.get("thumbnail")
-        if thumbnail_url:
-            try:
-                resp = requests.get(thumbnail_url, timeout=10)
-                if resp.status_code == 200:
+            if user_metadata.get("title"):
+                audio["\xa9nam"] = user_metadata["title"]
+            elif video_info.get("title"):
+                audio["\xa9nam"] = video_info["title"]
+
+            if user_metadata.get("artist"):
+                audio["\xa9ART"] = user_metadata["artist"]
+            elif video_info.get("uploader"):
+                audio["\xa9ART"] = video_info["uploader"]
+
+            if user_metadata.get("album"):
+                audio["\xa9alb"] = user_metadata["album"]
+
+            if user_metadata.get("album_artist"):
+                audio["aART"] = user_metadata["album_artist"]
+
+            if user_metadata.get("genre"):
+                audio["\xa9gen"] = user_metadata["genre"]
+
+            if user_metadata.get("year"):
+                audio["\xa9day"] = str(user_metadata["year"])
+
+            if user_metadata.get("track_number"):
+                try:
+                    track_num = int(user_metadata["track_number"])
+                    audio["trkn"] = [(track_num, 0)]
+                except:
+                    pass
+
+            # Add cover art
+            thumbnail_url = video_info.get("thumbnail")
+            if thumbnail_url:
+                try:
+                    resp = requests.get(thumbnail_url, timeout=10)
                     audio["covr"] = [MP4Cover(resp.content, imageformat=MP4Cover.FORMAT_JPEG)]
-            except:
-                pass
-        
-        audio.save()
-        return True, None
+                except:
+                    pass
+
+            audio.save()
+            return True, None
+
+        else:
+            return False, "Unsupported format for metadata embedding"
+
     except Exception as e:
         return False, str(e)
 
 
-def embed_metadata(file_path, info, metadata_inputs, fmt):
-    """Embed metadata based on file format."""
-    if fmt == "mp3":
-        return embed_metadata_mp3(file_path, info, metadata_inputs)
-    elif fmt == "m4a":
-        return embed_metadata_m4a(file_path, info, metadata_inputs)
-    else:
-        return False, f"{fmt.upper()} format does not support metadata embedding"
-
-
-def download_with_retry_and_progress(vid, metadata_inputs, max_retries=3):
-    """Download with retry logic, progress tracking, and graceful degradation."""
-    video_id = vid.get("id")
-    source = vid.get("source", "YouTube")
-    
-    # Check cache first
-    cached_files = {
-        'mp3': os.path.join(CACHE_PATH, sanitize_filename(f"{video_id}.mp3")),
-        'm4a': os.path.join(CACHE_PATH, sanitize_filename(f"{video_id}.m4a")),
-        'webm': os.path.join(CACHE_PATH, sanitize_filename(f"{video_id}.webm")),
-        'opus': os.path.join(CACHE_PATH, sanitize_filename(f"{video_id}.opus")),
-    }
-    
-    for fmt, path in cached_files.items():
-        if os.path.exists(path):
-            st.success(f"✅ Using cached {fmt.upper()} file from {source}")
-            
-            # Try to fetch full info for metadata update
-            try:
-                ydl_opts = {"quiet": True, "skip_download": True, "no_warnings": True}
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(vid["url"], download=False)
-            except:
-                info = vid
-            
-            # Update metadata on cached file
-            if fmt in ["mp3", "m4a"]:
-                with st.spinner("Updating metadata..."):
-                    success, error = embed_metadata(path, info, metadata_inputs, fmt)
-                    if not success:
-                        st.warning(f"⚠️ Could not update metadata: {error}")
-            
-            return path, fmt, info, None
-    
-    # Create progress indicators
+def download_with_retry_and_progress(video_info, user_metadata, max_retries=3):
+    """Download with retry logic and progress display."""
     progress_bar = st.progress(0)
     status_text = st.empty()
-    
-    # Try downloading with retry
+
+    def update_progress(percent, message="Downloading..."):
+        progress_bar.progress(percent)
+        status_text.info(f"📥 {message}")
+
     for attempt in range(max_retries):
         try:
-            status_text.info(f"📥 Attempt {attempt + 1}/{max_retries}: Starting download from {source}...")
+            status_text.info(f"📥 Attempt {attempt + 1}/{max_retries}...")
             
-            def update_progress(value, message=None):
-                progress_bar.progress(min(value, 1.0))
-                if message:
-                    status_text.info(f"📥 {message}")
+            video_url = video_info.get("url") or video_info.get("webpage_url")
+            video_id = video_info.get("id", "unknown")
             
             file_path, info, fmt, error = download_audio(
-                vid["url"], 
-                video_id, 
-                save_path=CACHE_PATH,
+                video_url,
+                video_id,
                 progress_callback=update_progress
             )
-            
+
             if file_path:
                 progress_bar.progress(1.0)
-                status_text.success(f"✅ Downloaded as {fmt.upper()}")
-                time.sleep(0.5)  # Brief pause to show completion
+                status_text.success("✅ Download complete!")
+                time.sleep(0.5)
                 progress_bar.empty()
                 status_text.empty()
                 return file_path, fmt, info, None
-            else:
-                # Handle error
+            elif error:
                 user_error = get_error_message(error)
                 
                 # Check if error is retryable
@@ -374,16 +498,16 @@ def download_with_retry_and_progress(vid, metadata_inputs, max_retries=3):
                         status_text.warning(f"{user_error} Retrying in {wait_time}s...")
                         time.sleep(wait_time)
                         continue
-                
+
                 # Non-retryable error
                 progress_bar.empty()
                 status_text.empty()
                 return None, None, None, user_error
-                
+
         except Exception as e:
             error_str = str(e)
             user_error = get_error_message(error_str)
-            
+
             # Check if retryable
             if attempt < max_retries - 1 and any(keyword in error_str.lower() for keyword in ["network", "timeout", "connection"]):
                 wait_time = 2 ** attempt
@@ -393,7 +517,7 @@ def download_with_retry_and_progress(vid, metadata_inputs, max_retries=3):
                 progress_bar.empty()
                 status_text.empty()
                 return None, None, None, user_error
-    
+
     progress_bar.empty()
     status_text.empty()
     return None, None, None, "❌ All download attempts failed"
@@ -408,114 +532,284 @@ def display_thumbnail(thumbnail_url, title):
         st.info("🖼️ Thumbnail not available")
 
 
+def get_source_emoji(source):
+    """Get emoji for source platform."""
+    emoji_map = {
+        'YouTube': '🎥',
+        'SoundCloud': '🎵',
+        'Bandcamp': '🎸',
+        'Bilibili': '📺',
+        'Niconico': '🎌'
+    }
+    return emoji_map.get(source, '🌐')
+
+
 def main():
-    st.title("🎶 Max Utility - Audio Downloader")
-    st.caption("Search and download from YouTube & SoundCloud")
+    st.title("🎶 Max Utility - Universal Audio Downloader")
+    st.caption("Search multiple platforms or download from direct URLs!")
 
     # Initialize session state
     if 'search_results' not in st.session_state:
         st.session_state.search_results = None
+    if 'url_result' not in st.session_state:
+        st.session_state.url_result = None
     if 'metadata' not in st.session_state:
         st.session_state.metadata = {}
     if 'search_errors' not in st.session_state:
         st.session_state.search_errors = []
 
-    col1, col2 = st.columns(2)
-    with col1:
-        title = st.text_input("Song Title", placeholder="Required")
-        artist = st.text_input("Artist Name", placeholder="Required")
-    with col2:
-        album = st.text_input("Album")
-        album_artist = st.text_input("Album Artist")
-        track_number = st.text_input("Track Number")
-        genre = st.text_input("Genre")
-        year = st.text_input("Year")
+    # Create tabs for different download methods
+    tab1, tab2 = st.tabs(["🔍 Search Multiple Platforms", "🔗 Direct URL Download"])
 
-    # Store metadata in session state
-    st.session_state.metadata = {
-        "title": title,
-        "artist": artist,
-        "album": album or None,
-        "album_artist": album_artist or None,
-        "track_number": track_number or None,
-        "genre": genre or None,
-        "year": year or None
-    }
-
-    if st.button("🔍 Search All Sources"):
-        if not title or not artist:
-            st.error("Please enter both song title and artist name.")
-            return
-
-        query = f"{title} {artist}"
-        results, errors = search_all_sources(query, max_results=5)
+    # Tab 1: Search
+    with tab1:
+        st.markdown("### Select Search Sources")
+        col_sources = st.columns(3)
         
-        st.session_state.search_errors = errors
+        with col_sources[0]:
+            search_youtube = st.checkbox("🎥 YouTube", value=True)
+            search_soundcloud = st.checkbox("🎵 SoundCloud", value=True)
+        with col_sources[1]:
+            search_bandcamp = st.checkbox("🎸 Bandcamp", value=True)
+            search_bilibili = st.checkbox("📺 Bilibili", value=False)
+        with col_sources[2]:
+            search_niconico = st.checkbox("🎌 Niconico", value=False)
         
-        if not results:
-            st.error("❌ No results found from any source.")
-            if errors:
-                with st.expander("View Error Details"):
-                    for error in errors:
-                        st.text(error)
-            return
-        
-        st.session_state.search_results = results
-        st.success(f"✅ Found {len(results)} results from multiple sources")
-        
-        if errors:
-            with st.expander("⚠️ Some sources had issues"):
-                for error in errors:
-                    st.warning(error)
-
-    # Display results if they exist
-    if st.session_state.search_results:
         st.divider()
         
-        for idx, vid in enumerate(st.session_state.search_results, start=1):
-            source = vid.get('source', 'Unknown')
-            source_emoji = "🎥" if source == "YouTube" else "🎵"
+        col1, col2 = st.columns(2)
+        with col1:
+            title = st.text_input("Song Title", placeholder="Required")
+            artist = st.text_input("Artist Name", placeholder="Required")
+        with col2:
+            album = st.text_input("Album")
+            album_artist = st.text_input("Album Artist")
+            track_number = st.text_input("Track Number")
+            genre = st.text_input("Genre")
+            year = st.text_input("Year")
+
+        # Store metadata in session state
+        st.session_state.metadata = {
+            "title": title,
+            "artist": artist,
+            "album": album or None,
+            "album_artist": album_artist or None,
+            "track_number": track_number or None,
+            "genre": genre or None,
+            "year": year or None
+        }
+
+        if st.button("🔍 Search Selected Sources"):
+            if not title or not artist:
+                st.error("Please enter both song title and artist name.")
+            else:
+                # Build list of selected sources
+                selected_sources = []
+                if search_youtube:
+                    selected_sources.append('YouTube')
+                if search_soundcloud:
+                    selected_sources.append('SoundCloud')
+                if search_bandcamp:
+                    selected_sources.append('Bandcamp')
+                if search_bilibili:
+                    selected_sources.append('Bilibili')
+                if search_niconico:
+                    selected_sources.append('Niconico')
+                
+                if not selected_sources:
+                    st.error("Please select at least one source to search.")
+                else:
+                    query = f"{title} {artist}"
+                    results, errors = search_all_sources(query, max_results=5, selected_sources=selected_sources)
+
+                    st.session_state.search_errors = errors
+
+                    if not results:
+                        st.error("❌ No results found from any source.")
+                        if errors:
+                            with st.expander("View Error Details"):
+                                for error in errors:
+                                    st.text(error)
+                    else:
+                        st.session_state.search_results = results
+                        st.session_state.url_result = None  # Clear URL results
+                        st.success(f"✅ Found {len(results)} results from {len(selected_sources)} source(s)")
+
+                        if errors:
+                            with st.expander("⚠️ Some sources had issues"):
+                                for error in errors:
+                                    st.warning(error)
+
+        # Display search results
+        if st.session_state.search_results:
+            st.divider()
+
+            for idx, vid in enumerate(st.session_state.search_results, start=1):
+                source = vid.get('source', 'Unknown')
+                source_emoji = get_source_emoji(source)
+
+                col_left, col_right = st.columns([3, 1])
+
+                with col_left:
+                    st.subheader(f"{idx}. {vid.get('title')}")
+                    st.caption(f"{source_emoji} {source} • {vid.get('uploader', 'Unknown uploader')}")
+
+                with col_right:
+                    video_id = vid.get("id")
+                    if st.button("⬇️ Download", key=f"download_search_{video_id}"):
+                        st.session_state[f"download_triggered_{video_id}"] = True
+
+                # Show thumbnail
+                if vid.get("thumbnail"):
+                    display_thumbnail(vid["thumbnail"], vid["title"])
+
+                # Show video preview (only for YouTube)
+                if source == "YouTube":
+                    try:
+                        st.video(vid["url"])
+                    except:
+                        st.caption("Video preview unavailable")
+
+                # Handle download if triggered
+                if st.session_state.get(f"download_triggered_{video_id}", False):
+                    with st.container():
+                        file_path, fmt, info, error = download_with_retry_and_progress(
+                            vid, 
+                            st.session_state.metadata
+                        )
+
+                        if error:
+                            st.error(error)
+                            st.info("💡 Try selecting a different result from the search.")
+                        elif file_path:
+                            # Embed metadata
+                            if fmt in ["mp3", "m4a"]:
+                                with st.spinner("Adding metadata..."):
+                                    success, meta_error = embed_metadata(
+                                        file_path, 
+                                        info, 
+                                        st.session_state.metadata,
+                                        fmt
+                                    )
+                                    if success:
+                                        st.success(f"✅ Successfully downloaded & tagged as {fmt.upper()}")
+                                    else:
+                                        st.warning(f"⚠️ Downloaded as {fmt.upper()} but metadata failed: {meta_error}")
+                            else:
+                                st.info(f"ℹ️ Downloaded as {fmt.upper()} (metadata not supported for this format)")
+
+                            # Provide download button
+                            mime_types = {
+                                "mp3": "audio/mpeg",
+                                "m4a": "audio/mp4",
+                                "webm": "audio/webm",
+                                "opus": "audio/opus"
+                            }
+
+                            with open(file_path, "rb") as f:
+                                st.download_button(
+                                    f"💾 Save {fmt.upper()} File",
+                                    f,
+                                    file_name=os.path.basename(file_path),
+                                    mime=mime_types.get(fmt, "audio/mpeg"),
+                                    key=f"save_search_{video_id}"
+                                )
+
+                        # Reset trigger
+                        st.session_state[f"download_triggered_{video_id}"] = False
+
+                st.divider()
+
+    # Tab 2: Direct URL
+    with tab2:
+        st.markdown("""
+        ### Supported Platforms for Direct URL:
+        - 🎬 **TikTok** (videos and sounds)
+        - 📷 **Instagram** (posts, reels, stories)
+        - 🐦 **Twitter/X** (videos)
+        - 👥 **Facebook** (videos)
+        - 🟣 **Twitch** (clips and VODs)
+        - 🔴 **Reddit** (videos)
+        - 🎞️ **Vimeo** (videos)
+        - And 1000+ more sites!
+        """)
+
+        url_input = st.text_input("Enter URL", placeholder="https://www.tiktok.com/@username/video/...")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            url_title = st.text_input("Custom Title (optional)", key="url_title")
+            url_artist = st.text_input("Custom Artist (optional)", key="url_artist")
+        with col2:
+            url_album = st.text_input("Custom Album (optional)", key="url_album")
+            url_genre = st.text_input("Custom Genre (optional)", key="url_genre")
+
+        if st.button("🔗 Get Audio Info"):
+            if not url_input:
+                st.error("Please enter a URL.")
+            else:
+                with st.spinner("🔍 Fetching content info..."):
+                    info, error = download_from_url(url_input)
+                    
+                    if error:
+                        st.error(f"❌ Failed to fetch content: {get_error_message(error)}")
+                    elif info:
+                        st.session_state.url_result = info
+                        st.session_state.search_results = None  # Clear search results
+                        
+                        platform, emoji = detect_platform(url_input)
+                        st.success(f"✅ Found content from {emoji} {platform}")
+                        
+                        # Store custom metadata
+                        st.session_state.metadata = {
+                            "title": url_title or info.get("title"),
+                            "artist": url_artist or info.get("uploader") or info.get("creator"),
+                            "album": url_album or None,
+                            "album_artist": None,
+                            "track_number": None,
+                            "genre": url_genre or None,
+                            "year": None
+                        }
+
+        # Display URL result
+        if st.session_state.url_result:
+            st.divider()
+            
+            info = st.session_state.url_result
+            platform, emoji = detect_platform(url_input)
             
             col_left, col_right = st.columns([3, 1])
             
             with col_left:
-                st.subheader(f"{idx}. {vid.get('title')}")
-                st.caption(f"{source_emoji} {source} • {vid.get('uploader', 'Unknown uploader')}")
+                st.subheader(info.get("title", "Unknown Title"))
+                uploader = info.get("uploader") or info.get("creator") or "Unknown"
+                st.caption(f"{emoji} {platform} • {uploader}")
             
             with col_right:
-                video_id = vid.get("id")
-                if st.button("⬇️ Download", key=f"download_{video_id}"):
-                    st.session_state[f"download_triggered_{video_id}"] = True
-            
+                if st.button("⬇️ Download Audio", key="download_url"):
+                    st.session_state["download_triggered_url"] = True
+
             # Show thumbnail
-            if vid.get("thumbnail"):
-                display_thumbnail(vid["thumbnail"], vid["title"])
-            
-            # Show video preview (only for YouTube)
-            if source == "YouTube":
-                try:
-                    st.video(vid["url"])
-                except:
-                    st.caption("Video preview unavailable")
-            
-            # Handle download if triggered
-            if st.session_state.get(f"download_triggered_{video_id}", False):
+            if info.get("thumbnail"):
+                display_thumbnail(info["thumbnail"], info.get("title", ""))
+
+            # Handle download
+            if st.session_state.get("download_triggered_url", False):
                 with st.container():
-                    file_path, fmt, info, error = download_with_retry_and_progress(
-                        vid, 
+                    file_path, fmt, download_info, error = download_with_retry_and_progress(
+                        info,
                         st.session_state.metadata
                     )
-                    
+
                     if error:
                         st.error(error)
-                        st.info("💡 Try selecting a different result from the search.")
                     elif file_path:
                         # Embed metadata
                         if fmt in ["mp3", "m4a"]:
                             with st.spinner("Adding metadata..."):
                                 success, meta_error = embed_metadata(
-                                    file_path, 
-                                    info, 
+                                    file_path,
+                                    download_info,
                                     st.session_state.metadata,
                                     fmt
                                 )
@@ -525,47 +819,60 @@ def main():
                                     st.warning(f"⚠️ Downloaded as {fmt.upper()} but metadata failed: {meta_error}")
                         else:
                             st.info(f"ℹ️ Downloaded as {fmt.upper()} (metadata not supported for this format)")
-                        
+
                         # Provide download button
                         mime_types = {
                             "mp3": "audio/mpeg",
                             "m4a": "audio/mp4",
                             "webm": "audio/webm",
-                            "opus": "audio/opus"
+                            "opus": "audio/opus",
+                            "mp4": "audio/mp4"
                         }
-                        
+
                         with open(file_path, "rb") as f:
                             st.download_button(
                                 f"💾 Save {fmt.upper()} File",
                                 f,
                                 file_name=os.path.basename(file_path),
                                 mime=mime_types.get(fmt, "audio/mpeg"),
-                                key=f"save_{video_id}"
+                                key="save_url"
                             )
-                    
+
                     # Reset trigger
-                    st.session_state[f"download_triggered_{video_id}"] = False
-            
-            st.divider()
+                    st.session_state["download_triggered_url"] = False
 
     # Sidebar info
     with st.sidebar:
-        st.header("ℹ️ About(Music Downloader)")
+        st.header("ℹ️ About")
         st.markdown("""
         **Features:**
-        - 🔍 Multi-source search (YouTube & SoundCloud)
-        - 🎵 Multiple format support (MP3, M4A, WebM)
+        - 🔍 Multi-platform search
+        - 🔗 Direct URL download
+        - 🎵 Multiple format support
         - 🏷️ Automatic metadata tagging
         - 💾 Smart caching
         - 🔄 Automatic retry on failure
         - 📊 Progress tracking
         
-        **Tips:**
-        - If YouTube fails, try SoundCloud results
-        - MP3/M4A support full metadata
-        - WebM is used as fallback format
-        """)
+        **Searchable Platforms:**
+        - 🎥 YouTube
+        - 🎵 SoundCloud
+        - 🎸 Bandcamp (indie music)
+        - 📺 Bilibili (Chinese content)
+        - 🎌 Niconico (Japanese content)
         
+        **URL-Only Platforms:**
+        - TikTok, Instagram, Twitter/X
+        - Facebook, Twitch, Reddit
+        - Vimeo, and 1000+ more!
+        
+        **Tips:**
+        - Bandcamp is great for indie/underground music
+        - Bilibili has lots of anime/Asian content
+        - Use URL tab for social media content
+        - MP3/M4A support full metadata
+        """)
+
         st.header("⚙️ System Status")
         try:
             import subprocess
@@ -573,7 +880,7 @@ def main():
             st.success(f"✅ yt-dlp: {result.stdout.strip()}")
         except:
             st.warning("⚠️ yt-dlp version check failed")
-        
+
         try:
             result = subprocess.run(['ffmpeg', '-version'], capture_output=True, text=True, timeout=5)
             st.success("✅ FFmpeg: Available")
