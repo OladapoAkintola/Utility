@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import shutil
 
-st.title("ðŸ“„ Document Converter")
+st.title("📄 Document Converter")
 st.write("Convert between different document formats: DOCX, HTML, PDF, Markdown, and TXT")
 
 # Supported formats and their conversions
@@ -21,50 +21,7 @@ def get_file_extension(filename):
     """Get file extension without the dot"""
     return Path(filename).suffix.lstrip('.').lower()
 
-def check_pandoc_installed():
-    """Check if pandoc is installed"""
-    try:
-        result = subprocess.run(['pandoc', '--version'], 
-                              capture_output=True, 
-                              text=True, 
-                              timeout=5)
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return False
 
-def install_pandoc():
-    """Install pandoc"""
-    try:
-        with st.spinner("Installing pandoc... This may take a moment."):
-            # Install pandoc
-            subprocess.run(['apt-get', 'update'], check=True, capture_output=True)
-            subprocess.run(['apt-get', 'install', '-y', 'pandoc'], check=True, capture_output=True)
-            return True
-    except subprocess.CalledProcessError as e:
-        st.error(f"Failed to install pandoc: {e}")
-        return False
-
-def check_wkhtmltopdf_installed():
-    """Check if wkhtmltopdf is installed"""
-    try:
-        result = subprocess.run(['wkhtmltopdf', '--version'], 
-                              capture_output=True, 
-                              text=True, 
-                              timeout=5)
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return False
-
-def install_wkhtmltopdf():
-    """Install wkhtmltopdf for HTML to PDF conversion"""
-    try:
-        with st.spinner("Installing wkhtmltopdf... This may take a moment."):
-            subprocess.run(['apt-get', 'update'], check=True, capture_output=True)
-            subprocess.run(['apt-get', 'install', '-y', 'wkhtmltopdf'], check=True, capture_output=True)
-            return True
-    except subprocess.CalledProcessError as e:
-        st.error(f"Failed to install wkhtmltopdf: {e}")
-        return False
 
 def convert_with_pandoc(input_file, output_file, from_format, to_format):
     """Convert document using pandoc"""
@@ -157,18 +114,6 @@ def perform_conversion(input_path, output_path, from_format, to_format):
     
     return convert_with_pandoc(input_path, output_path, pandoc_from, pandoc_to)
 
-# Check and install dependencies
-if not check_pandoc_installed():
-    st.warning("Pandoc is not installed. Installing now...")
-    if not install_pandoc():
-        st.error("Could not install pandoc. Some conversions may not work.")
-    else:
-        st.success("Pandoc installed successfully!")
-
-if not check_wkhtmltopdf_installed():
-    st.info("Installing PDF conversion tools...")
-    install_wkhtmltopdf()
-
 # File uploader
 uploaded_file = st.file_uploader(
     "Choose a document to convert",
@@ -184,7 +129,7 @@ if uploaded_file:
         st.error(f"Unsupported input format: {input_format}")
     else:
         # Display file info
-        st.success(f"ðŸ“„ Loaded: {uploaded_file.name} ({input_format.upper()})")
+        st.success(f"📄 Loaded: {uploaded_file.name} ({input_format.upper()})")
         
         # Select output format
         available_formats = SUPPORTED_FORMATS[input_format]
@@ -196,7 +141,7 @@ if uploaded_file:
         )
         
         # Convert button
-        if st.button("ðŸ”„ Convert", type="primary"):
+        if st.button("🔄 Convert", type="primary"):
             with st.spinner("Converting..."):
                 # Create temporary files
                 with tempfile.TemporaryDirectory() as temp_dir:
@@ -237,7 +182,7 @@ if uploaded_file:
                         
                         # Download button
                         st.download_button(
-                            label=f"â¬‡ï¸ Download {output_format.upper()}",
+                            label=f"⬇️ Download {output_format.upper()}",
                             data=converted_data,
                             file_name=output_filename,
                             mime=mime_type
@@ -245,7 +190,7 @@ if uploaded_file:
                         
                         # Preview for text-based formats
                         if output_format in ['txt', 'md', 'html']:
-                            with st.expander("ðŸ“ Preview"):
+                            with st.expander("📝 Preview"):
                                 try:
                                     preview_text = converted_data.decode('utf-8')
                                     if output_format == 'html':
@@ -260,24 +205,24 @@ if uploaded_file:
                         st.error(message)
 
 # Information section
-with st.expander("â„¹ï¸ Supported Conversions"):
+with st.expander("ℹ️ Supported Conversions"):
     st.markdown("""
     ### Supported Format Conversions
     
     **From DOCX:**
-    - â†’ HTML, PDF, Markdown, TXT
+    - → HTML, PDF, Markdown, TXT
     
     **From HTML:**
-    - â†’ DOCX, PDF, Markdown, TXT
+    - → DOCX, PDF, Markdown, TXT
     
     **From PDF:**
-    - â†’ TXT, Markdown, HTML (text extraction)
+    - → TXT, Markdown, HTML (text extraction)
     
     **From Markdown:**
-    - â†’ DOCX, HTML, PDF, TXT
+    - → DOCX, HTML, PDF, TXT
     
     **From TXT:**
-    - â†’ DOCX, HTML, PDF, Markdown
+    - → DOCX, HTML, PDF, Markdown
     
     ### Notes
     - PDF conversions extract text content (formatting may be lost)
@@ -286,4 +231,4 @@ with st.expander("â„¹ï¸ Supported Conversions"):
     """)
 
 st.markdown("---")
-st.markdown("ðŸ’¡ **Tip:** For best results, use source documents with clean formatting")
+st.markdown("💡 **Tip:** For best results, use source documents with clean formatting")
