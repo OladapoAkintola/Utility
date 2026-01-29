@@ -44,3 +44,4 @@ watchdog==6.0.0
 yt-dlp==2025.12.08
 mutagen==1.47.0
 pytubefix==9.4.1
+pdfplumber
