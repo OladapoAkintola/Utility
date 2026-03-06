@@ -38,11 +38,11 @@ image_converter_page = st.Page(
     icon="🖼️",
 )
 
-#document_converter_page = st.Page(
- #   page="views/document_converter.py",
- #   title="Document Converter",
- #   icon="📄",
-#)
+document_converter_page = st.Page(
+    page="views/document_converter.py",
+    title="Document Converter",
+    icon="📄",
+)
 
 # NAVIGATION WITH SECTIONS
 pg = st.navigation({
