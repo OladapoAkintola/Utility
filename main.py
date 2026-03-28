@@ -44,12 +44,23 @@ document_converter_page = st.Page(
     icon="📄",
 )
 
+metadata_cleaner_page = st.Page(
+    page="views/metadata_cleaner.py",
+    title="Metadata Cleaner",
+    icon="🔏",
+)
+
 # NAVIGATION WITH SECTIONS
 pg = st.navigation({
     "MEDIA DOWNLOAD": [vid_download_page, music_download_page],
     "SCRAPER": [scraper_page],
-    "OTHER UTILITIES": [roaster_page, converter_page, image_converter_page, #document_converter_page
-],
+    "OTHER UTILITIES": [
+        roaster_page,
+        converter_page,
+        image_converter_page,
+        # document_converter_page,
+        metadata_cleaner_page,
+    ],
 })
 
 # SHARED ON ALL PAGES
