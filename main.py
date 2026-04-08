@@ -1,5 +1,9 @@
 import streamlit as st
 
+st.set_page_config(
+    page_title="Max Utility"
+)
+
 # *** PAGE SETUP ***
 vid_download_page = st.Page(
     page="views/video_downloader.py",
