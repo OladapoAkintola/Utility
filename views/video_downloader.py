@@ -173,10 +173,10 @@ def download_video_to_cache(url: str, platform: str, itag: str = None, progress_
         shutil.move(final_path, cache_path)
 
         shutil.rmtree(temp_dir, ignore_errors=True)
-        
+
         if progress_placeholder:
             progress_placeholder.success("✅ Video downloaded successfully!")
-        
+
         return cache_path, info
 
     except Exception as e:
@@ -225,10 +225,10 @@ def extract_audio_from_video(cache_video_path: str, platform: str, media_id: str
         audio_cache_path = os.path.join(CACHE_DIR, f"{platform}_{sanitize_filename(media_id)}.mp3")
         shutil.move(audio_temp, audio_cache_path)
         shutil.rmtree(temp_dir, ignore_errors=True)
-        
+
         if progress_placeholder:
             progress_placeholder.success("✅ Audio extracted successfully!")
-        
+
         return audio_cache_path
 
     except Exception as e:
@@ -242,10 +242,10 @@ def get_cache_stats():
     """Get cache directory statistics."""
     if not os.path.exists(CACHE_DIR):
         return 0, 0, "0 B"
-    
+
     files = [f for f in os.listdir(CACHE_DIR) if os.path.isfile(os.path.join(CACHE_DIR, f))]
     total_size = sum(os.path.getsize(os.path.join(CACHE_DIR, f)) for f in files)
-    
+
     for unit in ['B', 'KB', 'MB', 'GB']:
         if total_size < 1024.0:
             size_str = f"{total_size:.1f} {unit}"
@@ -253,7 +253,7 @@ def get_cache_stats():
         total_size /= 1024.0
     else:
         size_str = f"{total_size:.1f} TB"
-    
+
     return len(files), total_size, size_str
 
 
@@ -306,16 +306,16 @@ def main():
     # Sidebar
     with st.sidebar:
         st.header("⚙️ System Status")
-        
+
         # FFmpeg status
         if ffmpeg_available():
             st.success("✅ FFmpeg: Available")
         else:
             st.error("❌ FFmpeg: Not Found")
-            
-        
+
+
         st.divider()
-        
+
         # Cache statistics
         st.header("💾 Cache Statistics")
         file_count, _, size_str = get_cache_stats()
@@ -324,22 +324,22 @@ def main():
             st.metric("Files", file_count)
         with col2:
             st.metric("Size", size_str)
-        
+
         st.divider()
-        
+
         # Platform info
         st.header("🌍 Supported Platforms")
         for platform, config in PLATFORMS.items():
             st.markdown(f"{config['icon']} {platform}")
-        
+
         st.caption("⚠️ Threads is not supported")
-        
+
         st.divider()
-        
+
         # Cache management
         st.header("🧹 Cache Management")
         st.caption("⚠️ Use with caution")
-        
+
         if st.button("🗑️ Clear All Cache", use_container_width=True):
             removed = 0
             for fn in os.listdir(CACHE_DIR):
@@ -353,7 +353,7 @@ def main():
             clear_video_session()
             st.success(f"✅ Removed {removed} files")
             st.rerun()
-        
+
         if st.button("⏰ Clear Old Cache (24h+)", use_container_width=True):
             removed = 0
             now = datetime.now().timestamp()
@@ -373,12 +373,12 @@ def main():
 
     # Main content
     st.divider()
-    
+
     # Step 1: Platform and URL
     st.subheader("📍 Step 1: Select Platform & Enter URL")
-    
+
     col1, col2 = st.columns([1, 3])
-    
+
     with col1:
         platform_options = list(PLATFORMS.keys())
         platform = st.selectbox(
@@ -387,7 +387,7 @@ def main():
             format_func=lambda x: f"{PLATFORMS[x]['icon']} {x}",
             label_visibility="collapsed"
         )
-    
+
     with col2:
         url = st.text_input(
             "Video URL",
@@ -402,19 +402,19 @@ def main():
         with st.spinner("🔍 Fetching available formats..."):
             try:
                 youtube_info = fetch_youtube_formats(url.strip())
-                
+
                 # Show video preview
                 if youtube_info.get("thumbnail"):
                     st.subheader("📺 Video Preview")
                     col_img, col_info = st.columns([1, 1])
-                    
+
                     with col_img:
                         try:
                             thumb_resp = requests.get(youtube_info["thumbnail"], timeout=10)
                             st.image(thumb_resp.content, use_container_width=True)
                         except:
                             st.info("Thumbnail unavailable")
-                    
+
                     with col_info:
                         st.write(f"**Title:** {youtube_info.get('title', 'Unknown')}")
                         st.write(f"**Uploader:** {youtube_info.get('uploader', 'Unknown')}")
@@ -423,10 +423,10 @@ def main():
                             mins = duration // 60
                             secs = duration % 60
                             st.write(f"**Duration:** {mins}:{secs:02d}")
-                
+
                 # Format selection
                 st.subheader("🎬 Select Video Quality (Optional)")
-                
+
                 video_formats = {}
                 for fmt in youtube_info.get('formats', []):
                     if 'format_id' not in fmt:
@@ -435,7 +435,7 @@ def main():
                         label = format_preview_label(fmt)
                         if label not in video_formats.values():
                             video_formats[fmt['format_id']] = label
-                
+
                 if video_formats:
                     # Group by quality
                     st.info("💡 Higher quality = larger file size. Leave default for best quality.")
@@ -451,11 +451,11 @@ def main():
     # Download button
     st.divider()
     st.subheader("⬇️ Step 2: Download")
-    
+
     progress_placeholder = st.empty()
-    
+
     col_download, col_clear = st.columns([3, 1])
-    
+
     with col_download:
         if st.button("📥 Download Video", use_container_width=True, type="primary"):
             if not url.strip():
@@ -464,11 +464,11 @@ def main():
                 try:
                     cache_path, info = download_video_to_cache(url.strip(), platform, itag, progress_placeholder)
                     media_id = info.get('id') or sanitize_filename(url.split("/")[-1])
-                    
+
                     # Load video bytes
                     with open(cache_path, "rb") as vf:
                         video_bytes = vf.read()
-                    
+
                     st.session_state['video_cached'] = {
                         'platform': platform,
                         'id': media_id,
@@ -480,7 +480,7 @@ def main():
                 except Exception as e:
                     progress_placeholder.error(f"❌ Download failed: {str(e)[:150]}")
                     clear_video_session()
-    
+
     with col_clear:
         if st.button("🔄 Reset", use_container_width=True):
             clear_video_session()
@@ -490,10 +490,10 @@ def main():
     if st.session_state.get('video_cached') and st.session_state.get('video_bytes'):
         vc = st.session_state['video_cached']
         video_bytes = st.session_state['video_bytes']
-        
+
         st.divider()
         st.subheader("🎬 Step 3: Preview & Download")
-        
+
         # Video info
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -502,10 +502,10 @@ def main():
             st.metric("Duration", get_video_duration(vc['path']))
         with col3:
             st.metric("Size", get_file_size(vc['path']))
-        
+
         # Video title
         st.write(f"**Title:** {vc['info'].get('title', os.path.basename(vc['path']))}")
-        
+
         # Video player
         try:
             st.video(video_bytes)
@@ -514,31 +514,34 @@ def main():
 
         # Download and extract buttons
         col_vid, col_aud = st.columns(2)
-        
+
         with col_vid:
+            video_ext = os.path.splitext(vc['path'])[1]
+            video_title = sanitize_filename(vc['info'].get('title', vc['id']))
             st.download_button(
                 label="💾 Download Video",
                 data=video_bytes,
-                file_name=os.path.basename(vc['path']),
+                file_name=f"{vc['platform']}-{video_title}{video_ext}",
                 mime="video/mp4",
                 use_container_width=True,
                 type="primary"
             )
-        
+
         with col_aud:
             if st.button("🎵 Extract Audio (MP3)", use_container_width=True):
                 try:
                     audio_progress = st.empty()
                     audio_path = extract_audio_from_video(vc['path'], vc['platform'], vc['id'], audio_progress)
-                    
+
                     # Load audio bytes
                     with open(audio_path, "rb") as af:
                         audio_bytes = af.read()
-                    
+
                     st.session_state['audio_cached'] = {
                         'platform': vc['platform'],
                         'id': vc['id'],
-                        'path': audio_path
+                        'path': audio_path,
+                        'title': vc['info'].get('title', vc['id'])  # stored for download filename
                     }
                     st.session_state['audio_bytes'] = audio_bytes
                     st.rerun()
@@ -549,28 +552,29 @@ def main():
     if st.session_state.get('audio_cached') and st.session_state.get('audio_bytes'):
         ac = st.session_state['audio_cached']
         audio_bytes = st.session_state['audio_bytes']
-        
+
         st.divider()
         st.subheader("🎧 Audio Ready")
-        
+
         # Audio info
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Format", "MP3")
         with col2:
             st.metric("Size", get_file_size(ac['path']))
-        
+
         # Audio player
         try:
             st.audio(audio_bytes, format="audio/mp3")
         except Exception as e:
             st.error(f"❌ Could not play audio: {e}")
-        
+
         # Download button
+        audio_title = sanitize_filename(ac['title'])
         st.download_button(
             label="💾 Download Audio (MP3)",
             data=audio_bytes,
-            file_name=os.path.basename(ac['path']),
+            file_name=f"{ac['platform']}-{audio_title}.mp3",
             mime="audio/mpeg",
             use_container_width=True,
             type="primary"
